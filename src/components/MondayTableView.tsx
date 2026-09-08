@@ -218,24 +218,15 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
               </div>
 
               {/* Header Right Mini Metric */}
-              <div className="flex items-center gap-3 text-xs font-bold">
-                <div className="hidden sm:flex items-center gap-1.5 text-slate-500">
-                  <span>ความสำเร็จ:</span>
-                  <span className="text-emerald-600 font-black">{donePercent}%</span>
-                </div>
-                <div className="w-24 bg-slate-100 h-2 rounded-full overflow-hidden hidden sm:block">
-                  <div
-                    className="h-full bg-emerald-500 rounded-full transition-all"
-                    style={{ width: `${donePercent}%` }}
-                  ></div>
-                </div>
+              <div className="flex items-center gap-3 text-xs font-bold text-slate-500">
+                <span className="hidden sm:inline">เสร็จแล้ว: <strong className="text-emerald-600 font-black">{doneCount}</strong>/{total} งาน</span>
               </div>
             </div>
 
             {/* Table Content */}
             {!isCollapsed && (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs text-left border-collapse min-w-[1020px]">
+                <table className="w-full text-xs text-left border-collapse min-w-[920px]">
                   <thead>
                     <tr className="bg-slate-50/90 text-slate-500 font-bold border-b border-slate-200 text-[11px] uppercase tracking-wider">
                       <th className="py-3 px-3 w-12 text-center text-slate-400">#</th>
@@ -243,7 +234,6 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                       <th className="py-3 px-3 w-40 text-center">Owner (ผู้ดูแล)</th>
                       <th className="py-3 px-3 w-44 text-center">Status (สถานะ)</th>
                       <th className="py-3 px-3 w-52 text-center">Timeline (ไทม์ไลน์)</th>
-                      <th className="py-3 px-3 w-32 text-center">Progress</th>
                       <th className="py-3 px-3 w-32 text-center">Priority</th>
                       <th className="py-3 px-3 w-20 text-center">Log</th>
                     </tr>
@@ -407,27 +397,6 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                             </div>
                           </td>
 
-                          {/* Progress Column */}
-                          <td className="py-3 px-3 text-center">
-                            <div className="w-24 mx-auto space-y-1">
-                              <div className="flex justify-between text-[10px] font-bold text-slate-700">
-                                <span>{task.progress}%</span>
-                              </div>
-                              <div className="w-full bg-slate-200/70 h-2 rounded-full overflow-hidden shadow-inner">
-                                <div
-                                  className={`h-full rounded-full transition-all duration-300 ${
-                                    task.progress === 100
-                                      ? 'bg-[#00c875]'
-                                      : task.progress >= 50
-                                      ? 'bg-[#0073ea]'
-                                      : 'bg-[#fdab3d]'
-                                  }`}
-                                  style={{ width: `${task.progress}%` }}
-                                ></div>
-                              </div>
-                            </div>
-                          </td>
-
                           {/* Priority Pill */}
                           <td className="py-3 px-3 text-center">
                             <span
@@ -458,7 +427,7 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                       <td className="py-3 px-3 text-center text-slate-400">
                         <Plus className="w-4 h-4 mx-auto text-slate-400" />
                       </td>
-                      <td colSpan={7} className="py-2.5 px-4">
+                      <td colSpan={6} className="py-2.5 px-4">
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
@@ -530,13 +499,13 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                           </div>
                         </td>
 
-                        <td colSpan={4} className="py-3 px-5 text-right text-slate-500 font-bold">
+                        <td colSpan={3} className="py-3 px-5 text-right text-slate-500 font-bold">
                           {doneCount === total ? (
                             <span className="text-[#00c875] font-black flex items-center justify-end gap-1.5">
-                              <CheckCircle2 className="w-4 h-4" /> 100% Completed!
+                              <CheckCircle2 className="w-4 h-4" /> เสร็จสมบูรณ์ทุกงาน!
                             </span>
                           ) : (
-                            <span>{donePercent}% สำเร็จ</span>
+                            <span>เสร็จแล้ว {doneCount}/{total} งาน</span>
                           )}
                         </td>
                       </tr>

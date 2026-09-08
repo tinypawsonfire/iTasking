@@ -81,28 +81,6 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         )}
       </div>
 
-      {/* Progress Bar */}
-      <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-slate-500 font-medium flex items-center gap-1">
-            <TrendingUp className="w-3.5 h-3.5 text-indigo-500" /> ความคืบหน้า
-          </span>
-          <span className="font-bold text-indigo-600">{task.progress}%</span>
-        </div>
-        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-300 ${
-              task.progress === 100
-                ? 'bg-emerald-500'
-                : task.progress >= 50
-                ? 'bg-indigo-600'
-                : 'bg-amber-500'
-            }`}
-            style={{ width: `${task.progress}%` }}
-          ></div>
-        </div>
-      </div>
-
       {/* Latest Activity Log Preview */}
       {latestLog && (
         <div className="p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/70 text-xs space-y-1">

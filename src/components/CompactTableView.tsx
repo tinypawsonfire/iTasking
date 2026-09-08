@@ -25,7 +25,6 @@ export const CompactTableView: React.FC<CompactTableViewProps> = ({
               <th className="py-3 px-4">ชื่องาน & รายละเอียด</th>
               <th className="py-3 px-4">ผู้รับผิดชอบ</th>
               <th className="py-3 px-4 text-center">สถานะ</th>
-              <th className="py-3 px-4 text-center">ความคืบหน้า</th>
               <th className="py-3 px-4 text-center">กำหนดส่ง</th>
               <th className="py-3 px-4 text-center">อัปเดตล่าสุด</th>
               <th className="py-3 px-3 text-center">จัดการ</th>
@@ -87,27 +86,6 @@ export const CompactTableView: React.FC<CompactTableViewProps> = ({
                       interactive={true}
                       onChange={(newSt) => onQuickStatusChange(task.id, newSt)}
                     />
-                  </td>
-
-                  {/* Progress Bar */}
-                  <td className="py-3 px-4 text-center">
-                    <div className="w-20 mx-auto space-y-1">
-                      <span className="text-[10px] font-bold text-slate-700 block">
-                        {task.progress}%
-                      </span>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${
-                            task.progress === 100
-                              ? 'bg-emerald-500'
-                              : task.progress >= 50
-                              ? 'bg-indigo-600'
-                              : 'bg-amber-500'
-                          }`}
-                          style={{ width: `${task.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
                   </td>
 
                   {/* Deadline */}

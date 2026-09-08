@@ -85,15 +85,6 @@ export const TableView: React.FC<TableViewProps> = ({
                 </div>
               </th>
               <th
-                onClick={() => handleSort('progress')}
-                className="py-3.5 px-4 text-center cursor-pointer hover:bg-slate-800 transition-colors"
-              >
-                <div className="flex items-center justify-center gap-1.5">
-                  <span>ความคืบหน้า</span>
-                  <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-                </div>
-              </th>
-              <th
                 onClick={() => handleSort('deadlineDate')}
                 className="py-3.5 px-4 text-center cursor-pointer hover:bg-slate-800 transition-colors"
               >
@@ -164,27 +155,6 @@ export const TableView: React.FC<TableViewProps> = ({
                       interactive={true}
                       onChange={(newSt) => onUpdateStatus(task.id, newSt)}
                     />
-                  </td>
-
-                  {/* Progress Bar */}
-                  <td className="py-3 px-4 text-center">
-                    <div className="w-24 mx-auto space-y-1">
-                      <div className="flex justify-between text-[10px] font-bold text-slate-600">
-                        <span>{task.progress}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            task.progress === 100
-                              ? 'bg-emerald-500'
-                              : task.progress >= 50
-                              ? 'bg-indigo-500'
-                              : 'bg-amber-500'
-                          }`}
-                          style={{ width: `${task.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
                   </td>
 
                   {/* Deadline */}
