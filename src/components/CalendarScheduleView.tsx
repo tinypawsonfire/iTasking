@@ -148,47 +148,19 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
     return days;
   }, [currentYear, currentMonth]);
 
-  // Map tasks to dates (either exact deadline, exact startDate, or spanning range)
+  // Map tasks to dates: Show task on its deadline date (due date)
   const tasksByDate = useMemo(() => {
     const map = new Map<string, Task[]>();
 
     filteredTasks.forEach((task) => {
-      // Prioritize deadlineDate or startDate
-      const datesToTag = new Set<string>();
-
-      if (task.deadlineDate) {
-        datesToTag.add(task.deadlineDate);
-      }
-      if (task.startDate) {
-        datesToTag.add(task.startDate);
-      }
-
-      // If task spans range <= 31 days, tag all intermediate days
-      if (task.startDate && task.deadlineDate && task.startDate <= task.deadlineDate) {
-        try {
-          const start = new Date(task.startDate);
-          const end = new Date(task.deadlineDate);
-          const diffDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-          if (diffDays <= 31 && diffDays > 0) {
-            const cur = new Date(start);
-            while (cur <= end) {
-              const y = cur.getFullYear();
-              const m = String(cur.getMonth() + 1).padStart(2, '0');
-              const d = String(cur.getDate()).padStart(2, '0');
-              datesToTag.add(`${y}-${m}-${d}`);
-              cur.setDate(cur.getDate() + 1);
-            }
-          }
-        } catch {
-          // ignore date parse errors
-        }
-      }
-
-      datesToTag.forEach((dStr) => {
+      // Map task strictly to its deadlineDate (or startDate if no deadline)
+      const targetDate = task.deadlineDate || task.startDate;
+      if (targetDate) {
+        const dStr = targetDate.slice(0, 10);
         const existing = map.get(dStr) || [];
         existing.push(task);
         map.set(dStr, existing);
-      });
+      }
     });
 
     return map;
