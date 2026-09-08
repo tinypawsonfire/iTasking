@@ -1,31 +1,37 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { redis } from './_db';
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  const isConnected = !!redis;
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
-  let pingSuccess = false;
-  if (redis) {
+  const isConfigured = Boolean(url && token);
+  let dbOnline = false;
+
+  if (isConfigured) {
     try {
-      await redis.ping();
-      pingSuccess = true;
-    } catch (e) {
-      pingSuccess = false;
+      const pingRes = await fetch(`${url}/ping`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (pingRes.ok) {
+        const data = await pingRes.json();
+        dbOnline = data.result === 'PONG';
+      }
+    } catch {
+      dbOnline = false;
     }
   }
 
   return res.status(200).json({
     status: 'ok',
     app: 'iTasking Cloud',
-    dbConfigured: isConnected,
-    dbOnline: pingSuccess,
+    dbConfigured: isConfigured,
+    dbOnline,
     timestamp: new Date().toISOString(),
   });
 }

@@ -1,8 +1,42 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { redis, DB_KEYS } from './_db';
+const DB_TASKS_KEY = 'itasking:tasks:v1';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
+function getCredentials() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return { url, token, isConfigured: Boolean(url && token) };
+}
+
+async function redisGet(key: string) {
+  const { url, token, isConfigured } = getCredentials();
+  if (!isConfigured) return null;
+  const res = await fetch(`${url}/get/${key}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  if (!data?.result) return null;
+  try {
+    return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+  } catch {
+    return data.result;
+  }
+}
+
+async function redisSet(key: string, value: any) {
+  const { url, token, isConfigured } = getCredentials();
+  if (!isConfigured) return false;
+  const res = await fetch(`${url}/set/${key}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(typeof value === 'string' ? value : JSON.stringify(value)),
+  });
+  return res.ok;
+}
+
+export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -11,20 +45,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  if (!redis) {
+  const { isConfigured } = getCredentials();
+  if (!isConfigured) {
     return res.status(200).json({
       dbConnected: false,
-      message: 'Vercel Database (Upstash Redis / Vercel KV) not configured yet.',
-      tasks: null,
+      message: 'Vercel Database (Upstash Redis) credentials not detected in Environment Variables.',
+      tasks: [],
     });
   }
 
   try {
     if (req.method === 'GET') {
-      const tasks = await redis.get(DB_KEYS.TASKS);
+      const tasks = await redisGet(DB_TASKS_KEY);
       return res.status(200).json({
         dbConnected: true,
-        tasks: tasks || [],
+        tasks: Array.isArray(tasks) ? tasks : [],
       });
     }
 
@@ -33,17 +68,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let newTasksList: any[] = [];
 
       if (Array.isArray(body?.tasks)) {
-        // Full batch sync
         newTasksList = body.tasks;
       } else if (body?.task) {
-        // Single add
-        const currentTasks: any[] = (await redis.get(DB_KEYS.TASKS)) || [];
-        newTasksList = [body.task, ...currentTasks.filter((t: any) => t.id !== body.task.id)];
+        const currentTasks = (await redisGet(DB_TASKS_KEY)) || [];
+        const filtered = Array.isArray(currentTasks)
+          ? currentTasks.filter((t: any) => t.id !== body.task.id)
+          : [];
+        newTasksList = [body.task, ...filtered];
       } else if (Array.isArray(body)) {
         newTasksList = body;
       }
 
-      await redis.set(DB_KEYS.TASKS, newTasksList);
+      await redisSet(DB_TASKS_KEY, newTasksList);
       return res.status(200).json({
         success: true,
         dbConnected: true,
@@ -52,14 +88,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'PUT') {
-      const { task, taskId, updates } = req.body;
-      const currentTasks: any[] = (await redis.get(DB_KEYS.TASKS)) || [];
+      const { task, taskId, updates } = req.body || {};
+      const current = (await redisGet(DB_TASKS_KEY)) || [];
+      const currentTasks: any[] = Array.isArray(current) ? current : [];
 
       let updatedList = [];
       if (task) {
-        updatedList = currentTasks.map((t: any) => (t.id === task.id ? task : t));
-        // If not found, add
-        if (!currentTasks.some((t: any) => t.id === task.id)) {
+        let found = false;
+        updatedList = currentTasks.map((t: any) => {
+          if (t.id === task.id) {
+            found = true;
+            return task;
+          }
+          return t;
+        });
+        if (!found) {
           updatedList.unshift(task);
         }
       } else if (taskId && updates) {
@@ -68,7 +111,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updatedList = currentTasks;
       }
 
-      await redis.set(DB_KEYS.TASKS, updatedList);
+      await redisSet(DB_TASKS_KEY, updatedList);
       return res.status(200).json({
         success: true,
         dbConnected: true,
@@ -77,15 +120,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      const { taskId } = req.body || req.query;
+      const { taskId } = req.body || req.query || {};
       if (!taskId) {
-        return res.status(400).json({ error: 'taskId required' });
+        return res.status(400).json({ error: 'taskId is required' });
       }
 
-      const currentTasks: any[] = (await redis.get(DB_KEYS.TASKS)) || [];
+      const current = (await redisGet(DB_TASKS_KEY)) || [];
+      const currentTasks: any[] = Array.isArray(current) ? current : [];
       const filtered = currentTasks.filter((t: any) => t.id !== taskId);
-      await redis.set(DB_KEYS.TASKS, filtered);
 
+      await redisSet(DB_TASKS_KEY, filtered);
       return res.status(200).json({
         success: true,
         dbConnected: true,

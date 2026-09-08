@@ -1,7 +1,42 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { redis, DB_KEYS } from './_db';
+const DB_CATEGORIES_KEY = 'itasking:categories:v1';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+function getCredentials() {
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  return { url, token, isConfigured: Boolean(url && token) };
+}
+
+async function redisGet(key: string) {
+  const { url, token, isConfigured } = getCredentials();
+  if (!isConfigured) return null;
+  const res = await fetch(`${url}/get/${key}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  if (!data?.result) return null;
+  try {
+    return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+  } catch {
+    return data.result;
+  }
+}
+
+async function redisSet(key: string, value: any) {
+  const { url, token, isConfigured } = getCredentials();
+  if (!isConfigured) return false;
+  const res = await fetch(`${url}/set/${key}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(typeof value === 'string' ? value : JSON.stringify(value)),
+  });
+  return res.ok;
+}
+
+export default async function handler(req: any, res: any) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,26 +45,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  if (!redis) {
+  const { isConfigured } = getCredentials();
+  if (!isConfigured) {
     return res.status(200).json({
       dbConnected: false,
-      categories: null,
+      categories: [],
     });
   }
 
   try {
     if (req.method === 'GET') {
-      const categories = await redis.get(DB_KEYS.CATEGORIES);
+      const categories = await redisGet(DB_CATEGORIES_KEY);
       return res.status(200).json({
         dbConnected: true,
-        categories: categories || [],
+        categories: Array.isArray(categories) ? categories : [],
       });
     }
 
     if (req.method === 'POST') {
       const body = req.body;
       const categories = Array.isArray(body?.categories) ? body.categories : body;
-      await redis.set(DB_KEYS.CATEGORIES, categories);
+      await redisSet(DB_CATEGORIES_KEY, categories);
       return res.status(200).json({
         success: true,
         dbConnected: true,
