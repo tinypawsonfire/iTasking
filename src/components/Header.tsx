@@ -21,6 +21,7 @@ import {
   CloudOff,
   RefreshCw,
   Settings,
+  Upload,
 } from 'lucide-react';
 import type { UserAuthSession } from './LoginPage';
 
@@ -41,6 +42,7 @@ interface HeaderProps {
   isCloudConnected?: boolean;
   isSyncing?: boolean;
   onRefreshCloud?: () => void;
+  onForcePushCloud?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -58,6 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
   isCloudConnected = false,
   isSyncing = false,
   onRefreshCloud,
+  onForcePushCloud,
 }) => {
   const totalCount = tasks.length;
   const inProgressCount = tasks.filter((t) => t.status === 'in_progress').length;
@@ -139,6 +142,19 @@ export const Header: React.FC<HeaderProps> = ({
                 </>
               )}
             </div>
+
+            {/* Force Push Button */}
+            {onForcePushCloud && (
+              <button
+                type="button"
+                onClick={onForcePushCloud}
+                className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                title="ส่งข้อมูลในเครื่องนี้ขึ้น Cloud ให้เพื่อนร่วมทีมเห็นตรงกันทุกคน"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">ส่งข้อมูลให้ทุกคน</span>
+              </button>
+            )}
 
             {/* AI Summary Button */}
             <button

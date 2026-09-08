@@ -121,16 +121,27 @@ export function App() {
   useEffect(() => {
     // 1. Instant local render
     const loaded = loadTasksFromStorage();
+    const loadedCats = loadCategoriesFromStorage();
     setTasks(loaded);
-    setCategories(loadCategoriesFromStorage());
+    setCategories(loadedCats);
 
     // 2. Fetch live data from Vercel Cloud Database
     setIsSyncing(true);
     Promise.all([fetchTasksFromCloud(), fetchCategoriesFromCloud()])
       .then(([tasksRes, catsRes]) => {
-        if (tasksRes.isCloudConnected) {
+        if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
           setIsCloudConnected(true);
-          setTasks(tasksRes.tasks);
+          // If local has real rich data (e.g. TSK- codes, Arthit, etc.) that cloud lacks, push local to cloud!
+          const localHasRich = loaded.some(t => t.code?.startsWith('TSK-') || t.assignees?.includes('Arthit'));
+          const cloudHasRich = tasksRes.tasks.some(t => t.code?.startsWith('TSK-') || t.assignees?.includes('Arthit'));
+
+          if (localHasRich && !cloudHasRich) {
+            syncAllTasksToCloud(loaded);
+            if (loadedCats.length > 0) syncCategoriesToCloud(loadedCats);
+            broadcastUpdate(loaded, loadedCats);
+          } else {
+            setTasks(tasksRes.tasks);
+          }
         }
         if (catsRes.isCloudConnected && catsRes.categories.length > 0) {
           setCategories(catsRes.categories);
@@ -214,6 +225,20 @@ export function App() {
       }
     } catch {
       // offline
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleForcePushCloud = async () => {
+    setIsSyncing(true);
+    try {
+      await syncAllTasksToCloud(tasks);
+      await syncCategoriesToCloud(categories);
+      broadcastUpdate(tasks, categories);
+      alert('✓ ส่งข้อมูลเครื่องนี้ขึ้น Cloud ให้ทุกคนในทีมเรียบร้อยแล้ว!');
+    } catch {
+      alert('เกิดข้อผิดพลาดในการเชื่อมต่อ Cloud');
     } finally {
       setIsSyncing(false);
     }
@@ -453,6 +478,7 @@ export function App() {
           isCloudConnected={isCloudConnected}
           isSyncing={isSyncing}
           onRefreshCloud={handleRefreshCloud}
+          onForcePushCloud={handleForcePushCloud}
         />
 
         {/* Workspace Body */}
