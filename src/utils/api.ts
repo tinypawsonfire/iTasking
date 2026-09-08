@@ -144,7 +144,14 @@ export async function fetchCategoriesFromCloud(): Promise<{ categories: ModuleCa
 
     if (res.ok) {
       const data = await res.json();
-      if (data.dbConnected && Array.isArray(data.categories) && data.categories.length > 0) {
+      if (data.dbConnected && Array.isArray(data.categories)) {
+        if (data.categories.length === 0) {
+          const localCats = loadCategoriesFromStorage();
+          if (localCats.length > 0) {
+            await syncCategoriesToCloud(localCats);
+            return { categories: localCats, isCloudConnected: true };
+          }
+        }
         saveCategoriesToStorage(data.categories);
         return { categories: data.categories, isCloudConnected: true };
       }
