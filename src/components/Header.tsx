@@ -9,8 +9,6 @@ import {
   LayoutGrid,
   BarChart3,
   Plus,
-  Download,
-  RotateCcw,
   Sparkles,
   CheckCircle2,
   PlayCircle,
@@ -35,8 +33,8 @@ interface HeaderProps {
   onOpenTaskUpdate: (task: Task) => void;
   onOpenAISummary: () => void;
   onOpenSettings?: () => void;
-  onExportData: () => void;
-  onResetData: () => void;
+  onExportData?: () => void;
+  onResetData?: () => void;
   userSession?: UserAuthSession | null;
   onLogout?: () => void;
   isCloudConnected?: boolean;
@@ -53,8 +51,6 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenTaskUpdate,
   onOpenAISummary,
   onOpenSettings,
-  onExportData,
-  onResetData,
   userSession,
   onLogout,
   isCloudConnected = false,
@@ -183,22 +179,6 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden sm:inline text-xs font-bold">ตั้งค่า</span>
               </button>
             )}
-
-            <button
-              onClick={onExportData}
-              title="ดาวน์โหลดไฟล์สำรองข้อมูล (JSON)"
-              className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-            >
-              <Download className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={onResetData}
-              title="ล้างข้อมูลทั้งหมดเพื่อเริ่มใหม่"
-              className="p-2 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 text-xs transition-colors"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-            </button>
 
             <button
               onClick={onOpenNewTask}
