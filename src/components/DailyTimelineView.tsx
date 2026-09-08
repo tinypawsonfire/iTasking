@@ -1,12 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import type { Task, ActivityLog } from '../types';
+import type { Task, ActivityLog, TaskStatus } from '../types';
 import { formatDateTimeThai, formatThaiDate } from '../utils/dateUtils';
 import {
   Calendar,
   Clock,
   User,
   Tag,
-  TrendingUp,
   Search,
   CheckCircle2,
   Sparkles,
@@ -14,11 +13,18 @@ import {
   MessageSquare,
   Flame,
   Layers,
+  Edit3,
+  Trash2,
+  X,
+  Check,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface DailyTimelineViewProps {
   tasks: Task[];
   onOpenUpdate: (task: Task) => void;
+  onUpdateTask?: (updatedTask: Task) => void;
+  availableUsers?: string[];
 }
 
 interface GroupedDailyLogs {
@@ -32,9 +38,19 @@ interface GroupedDailyLogs {
 export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
   tasks,
   onOpenUpdate,
+  onUpdateTask,
+  availableUsers = [],
 }) => {
   const [filterAuthor, setFilterAuthor] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Editing state for a timeline log
+  const [editingItem, setEditingItem] = useState<{ log: ActivityLog; task: Task } | null>(null);
+  const [editAuthor, setEditAuthor] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editContent, setEditContent] = useState('');
+  const [editStatus, setEditStatus] = useState<TaskStatus | ''>('');
 
   // Extract and group logs by date
   const groupedDailyLogs = useMemo(() => {
@@ -112,6 +128,84 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     });
     return Array.from(set);
   }, [tasks]);
+
+  const STATUS_LABELS: Record<string, string> = {
+    todo: 'รอดำเนินการ',
+    in_progress: 'กำลังดำเนินการ',
+    review: 'รอตรวจสอบ',
+    completed: 'เสร็จสิ้นแล้ว',
+    blocked: 'ติดปัญหา / ล่าช้า',
+  };
+
+  const handleStartEdit = (log: ActivityLog, task: Task) => {
+    setEditingItem({ log, task });
+    setEditAuthor(log.author || '');
+    setEditContent(log.content || '');
+    setEditStatus(log.newStatus || '');
+
+    const logDate = new Date(log.timestamp);
+    if (!isNaN(logDate.getTime())) {
+      const y = logDate.getFullYear();
+      const m = String(logDate.getMonth() + 1).padStart(2, '0');
+      const d = String(logDate.getDate()).padStart(2, '0');
+      setEditDate(`${y}-${m}-${d}`);
+      const hh = String(logDate.getHours()).padStart(2, '0');
+      const mm = String(logDate.getMinutes()).padStart(2, '0');
+      setEditTime(`${hh}:${mm}`);
+    } else {
+      const now = new Date();
+      setEditDate(now.toISOString().slice(0, 10));
+      setEditTime('12:00');
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingItem) return;
+    const { log, task } = editingItem;
+
+    let newTimestamp = log.timestamp;
+    if (editDate) {
+      const timeStr = editTime ? `${editTime}:00` : '12:00:00';
+      const parsedDate = new Date(`${editDate}T${timeStr}`);
+      if (!isNaN(parsedDate.getTime())) {
+        newTimestamp = parsedDate.toISOString();
+      }
+    }
+
+    const updatedLog: ActivityLog = {
+      ...log,
+      author: editAuthor.trim() || log.author,
+      content: editContent.trim(),
+      timestamp: newTimestamp,
+      newStatus: editStatus ? (editStatus as TaskStatus) : undefined,
+    };
+
+    const updatedLogs = (task.logs || []).map((l) => (l.id === log.id ? updatedLog : l));
+    const updatedTask: Task = {
+      ...task,
+      logs: updatedLogs,
+      ...(editStatus ? { status: editStatus as TaskStatus } : {}),
+      updatedAt: new Date().toISOString(),
+    };
+
+    onUpdateTask?.(updatedTask);
+    setEditingItem(null);
+  };
+
+  const handleDeleteLog = (task: Task, logId: string) => {
+    if (!window.confirm('คุณต้องการลบรายการบันทึกนี้จาก Timeline ใช่หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้')) {
+      return;
+    }
+
+    const updatedLogs = (task.logs || []).filter((l) => l.id !== logId);
+    const updatedTask: Task = {
+      ...task,
+      logs: updatedLogs,
+      updatedAt: new Date().toISOString(),
+    };
+
+    onUpdateTask?.(updatedTask);
+  };
 
   const totalLogsCount = groupedDailyLogs.reduce((acc, g) => acc + g.items.length, 0);
 
@@ -194,7 +288,7 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                     <div className="w-1.5 h-1.5 rounded-full bg-indigo-600"></div>
                   </div>
 
-                  <div className="bg-slate-50 hover:bg-indigo-50/40 rounded-2xl p-4 border border-slate-200/80 hover:border-indigo-300 transition-all space-y-2">
+                  <div className="bg-slate-50 hover:bg-indigo-50/30 rounded-2xl p-4 border border-slate-200/80 hover:border-indigo-300 transition-all space-y-2.5">
                     {/* Event Meta Header */}
                     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                       <div className="flex items-center gap-2">
@@ -206,16 +300,41 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                         </span>
                       </div>
 
-                      {/* Associated Task Pill */}
-                      <button
-                        onClick={() => onOpenUpdate(task)}
-                        className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 transition-all flex items-center gap-1"
-                        title="คลิกเพื่อเปิดดูรายละเอียดงาน"
-                      >
-                        <Tag className="w-3 h-3" />
-                        <span>{task.title}</span>
-                        <span className="text-[10px] opacity-75">({task.module})</span>
-                      </button>
+                      {/* Associated Task Pill + Edit/Delete Actions */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <button
+                          onClick={() => onOpenUpdate(task)}
+                          className="px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-100 transition-all flex items-center gap-1 cursor-pointer"
+                          title="คลิกเพื่อเปิดดูรายละเอียดงาน"
+                        >
+                          <Tag className="w-3 h-3" />
+                          <span>{task.title}</span>
+                          <span className="text-[10px] opacity-75">({task.module})</span>
+                        </button>
+
+                        {onUpdateTask && (
+                          <div className="flex items-center gap-0.5 bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(log, task)}
+                              className="px-2 py-1 rounded-md text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                              title="แก้ไขบันทึกนี้"
+                            >
+                              <Edit3 className="w-3 h-3 text-indigo-600" />
+                              <span>แก้ไข</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLog(task, log.id)}
+                              className="px-2 py-1 rounded-md text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-1 text-[11px] font-bold cursor-pointer"
+                              title="ลบบันทึกนี้ (เผื่อดำเนินการผิดพลาด)"
+                            >
+                              <Trash2 className="w-3 h-3 text-rose-500" />
+                              <span>ลบ</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
 
                     {/* Log Note Content */}
@@ -223,21 +342,20 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
                       {log.content}
                     </p>
 
-                    {/* Progress / Status Change Tag */}
-                    {(log.progressPercent !== undefined || log.newStatus) && (
+                    {/* Status Change Tag */}
+                    {(log.newStatus || log.progressPercent !== undefined) && (
                       <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold pt-1 border-t border-slate-100/80">
                         <div className="flex items-center gap-2">
-                          {log.progressPercent !== undefined && (
-                            <span className="text-indigo-600 flex items-center gap-1">
-                              <TrendingUp className="w-3 h-3" /> ความคืบหน้า: {log.progressPercent}%
+                          {log.newStatus && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold border border-slate-200/60">
+                              สถานะ: {STATUS_LABELS[log.newStatus] || log.newStatus}
                             </span>
                           )}
-                          {log.newStatus && <span>• สถานะ: {log.newStatus}</span>}
                         </div>
 
                         <button
                           onClick={() => onOpenUpdate(task)}
-                          className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 hover:underline"
+                          className="text-[11px] text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5 hover:underline cursor-pointer"
                         >
                           <span>อัปเดตต่อ</span>
                           <ArrowRight className="w-3 h-3" />
@@ -261,6 +379,150 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* Edit Timeline Log Modal */}
+      {editingItem && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-fadeIn">
+          <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 px-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-50 to-indigo-50/30">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold shadow-2xs">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">แก้ไขบันทึก Timeline</h3>
+                  <p className="text-[11px] text-slate-500 truncate max-w-[280px]">
+                    งาน: {editingItem.task.title} ({editingItem.task.module})
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="p-1.5 rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 space-y-4 text-xs">
+              {/* Author */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>ผู้บันทึก</span>
+                </label>
+                {availableUsers && availableUsers.length > 0 ? (
+                  <select
+                    value={editAuthor}
+                    onChange={(e) => setEditAuthor(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  >
+                    <option value={editAuthor}>{editAuthor}</option>
+                    {availableUsers.filter((u) => u !== editAuthor).map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    type="text"
+                    value={editAuthor}
+                    onChange={(e) => setEditAuthor(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500"
+                    placeholder="ชื่อผู้บันทึก..."
+                  />
+                )}
+              </div>
+
+              {/* Date & Time */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>วันที่บันทึก</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={editDate}
+                    onChange={(e) => setEditDate(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>เวลา</span>
+                  </label>
+                  <input
+                    type="time"
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {/* Content Note */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1 flex items-center gap-1">
+                  <MessageSquare className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>ข้อความรายละเอียด / สิ่งที่ได้ทำ</span>
+                </label>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={3}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                  placeholder="ระบุข้อความอัปเดต..."
+                />
+              </div>
+
+              {/* Status Change (Optional) */}
+              <div>
+                <label className="block text-slate-700 font-bold mb-1">
+                  สถานะงาน (ถ้าต้องการแก้ไขสถานะ)
+                </label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as TaskStatus | '')}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:bg-white focus:outline-none focus:border-indigo-500 cursor-pointer"
+                >
+                  <option value="">คงเดิม (ไม่เปลี่ยนสถานะ)</option>
+                  <option value="todo">รอดำเนินการ (To Do)</option>
+                  <option value="in_progress">กำลังดำเนินการ (In Progress)</option>
+                  <option value="review">รอตรวจสอบ (Review)</option>
+                  <option value="completed">เสร็จสิ้น (Completed)</option>
+                  <option value="blocked">ติดปัญหา / ล่าช้า (Blocked)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 px-5 border-t border-slate-100 bg-slate-50/80 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setEditingItem(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-600 font-bold text-xs transition-colors cursor-pointer"
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveEdit}
+                disabled={!editContent.trim()}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>บันทึกการแก้ไข</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

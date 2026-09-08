@@ -427,6 +427,8 @@ export function App() {
                   <DailyTimelineView
                     tasks={tasks}
                     onOpenUpdate={handleOpenUpdate}
+                    onUpdateTask={handleUpdateTask}
+                    availableUsers={availableAssignees}
                   />
                 )}
 
