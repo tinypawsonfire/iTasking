@@ -231,3 +231,42 @@ export function formatThaiTime(isoStr: string | undefined): string {
     return '';
   }
 }
+
+export function getTimestampFromDateString(dateStr?: string, referenceTime?: string | Date): string {
+  const now = referenceTime ? new Date(referenceTime) : new Date();
+  if (!dateStr) return now.toISOString();
+
+  const [y, m, d] = dateStr.slice(0, 10).split('-').map(Number);
+  if (!y || !m || !d) return now.toISOString();
+
+  const dateObj = new Date(
+    y,
+    m - 1,
+    d,
+    now.getHours() || 9,
+    now.getMinutes() || 0,
+    now.getSeconds() || 0
+  );
+  return dateObj.toISOString();
+}
+
+export function alignTaskCreationWithStartDate<T extends { startDate?: string; createdAt?: string; logs?: any[] }>(task: T): T {
+  if (!task.startDate) return task;
+
+  const creationIso = getTimestampFromDateString(task.startDate, task.createdAt);
+  const updatedLogs = (task.logs || []).map((l) => {
+    if (l.actionType === 'created') {
+      return {
+        ...l,
+        timestamp: creationIso,
+      };
+    }
+    return l;
+  });
+
+  return {
+    ...task,
+    createdAt: creationIso,
+    logs: updatedLogs,
+  };
+}

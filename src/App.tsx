@@ -8,7 +8,7 @@ import {
   clearAllStorage,
   exportDataAsJson,
 } from './utils/storage';
-import { getDeadlineAlertInfo } from './utils/dateUtils';
+import { getDeadlineAlertInfo, alignTaskCreationWithStartDate } from './utils/dateUtils';
 import { Header, SimpleActiveView } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { UrgentAlertBanner } from './components/UrgentAlertBanner';
@@ -120,7 +120,7 @@ export function App() {
   // Load clean data from Local Cache first, then sync from Vercel Cloud
   useEffect(() => {
     // 1. Instant local render
-    const loaded = loadTasksFromStorage();
+    const loaded = loadTasksFromStorage().map(alignTaskCreationWithStartDate);
     const loadedCats = loadCategoriesFromStorage();
     setTasks(loaded);
     setCategories(loadedCats);
@@ -131,6 +131,8 @@ export function App() {
       .then(([tasksRes, catsRes]) => {
         if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
           setIsCloudConnected(true);
+          const aligned = tasksRes.tasks.map(alignTaskCreationWithStartDate);
+
           // If local has real rich data (e.g. TSK- codes, Arthit, etc.) that cloud lacks, push local to cloud!
           const localHasRich = loaded.some(t => t.code?.startsWith('TSK-') || t.assignees?.includes('Arthit'));
           const cloudHasRich = tasksRes.tasks.some(t => t.code?.startsWith('TSK-') || t.assignees?.includes('Arthit'));
@@ -140,7 +142,10 @@ export function App() {
             if (loadedCats.length > 0) syncCategoriesToCloud(loadedCats);
             broadcastUpdate(loaded, loadedCats);
           } else {
-            setTasks(tasksRes.tasks);
+            setTasks(aligned);
+            if (JSON.stringify(tasksRes.tasks) !== JSON.stringify(aligned)) {
+              syncAllTasksToCloud(aligned);
+            }
           }
         }
         if (catsRes.isCloudConnected && catsRes.categories.length > 0) {
@@ -161,11 +166,12 @@ export function App() {
           .then(([tasksRes, catsRes]) => {
             if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
               setIsCloudConnected(true);
+              const aligned = tasksRes.tasks.map(alignTaskCreationWithStartDate);
               setTasks((prevTasks) => {
                 const prevStr = JSON.stringify(prevTasks);
-                const nextStr = JSON.stringify(tasksRes.tasks);
+                const nextStr = JSON.stringify(aligned);
                 if (prevStr !== nextStr) {
-                  return tasksRes.tasks;
+                  return aligned;
                 }
                 return prevTasks;
               });
@@ -191,7 +197,8 @@ export function App() {
           .then(([tasksRes, catsRes]) => {
             if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
               setIsCloudConnected(true);
-              setTasks(tasksRes.tasks);
+              const aligned = tasksRes.tasks.map(alignTaskCreationWithStartDate);
+              setTasks(aligned);
             }
             if (catsRes.isCloudConnected && Array.isArray(catsRes.categories) && catsRes.categories.length > 0) {
               setCategories(catsRes.categories);

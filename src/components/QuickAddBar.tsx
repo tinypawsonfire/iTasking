@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import type { Task, TaskStatus, ModuleCategory } from '../types';
+import { getTimestampFromDateString } from '../utils/dateUtils';
 import { Plus, User, Calendar, Layers, Sparkles, Clock, CheckCircle2 } from 'lucide-react';
 
 interface QuickAddBarProps {
@@ -30,9 +31,11 @@ export const QuickAddBar: React.FC<QuickAddBarProps> = ({
     const finalAssignees = rawAssignees.length > 0 ? rawAssignees : ['ยังไม่ระบุ'];
     const finalStartDate = startDate || new Date().toISOString().slice(0, 10);
     const finalDeadlineDate = deadlineDate || finalStartDate;
+    const creationTimestamp = getTimestampFromDateString(finalStartDate);
+    const newTaskId = `task-${Date.now()}`;
 
     const newTask: Task = {
-      id: `task-${Date.now()}`,
+      id: newTaskId,
       code: `TSK-${Math.floor(100 + Math.random() * 900)}`,
       module: module.trim() || 'งานทั่วไป',
       title: title.trim(),
@@ -48,14 +51,14 @@ export const QuickAddBar: React.FC<QuickAddBarProps> = ({
       logs: [
         {
           id: `log-${Date.now()}`,
-          taskId: `task-${Date.now()}`,
+          taskId: newTaskId,
           author: finalAssignees[0] || 'ผู้ดูแล',
-          timestamp: new Date().toISOString(),
+          timestamp: creationTimestamp,
           actionType: 'created',
           content: `สร้างงาน "${title.trim()}" ผู้ดูแล: ${finalAssignees.join(', ')}`,
         },
       ],
-      createdAt: new Date().toISOString(),
+      createdAt: creationTimestamp,
       updatedAt: new Date().toISOString(),
     };
 

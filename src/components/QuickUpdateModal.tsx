@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { Task, TaskStatus, Priority, ActivityLog, Attachment, ModuleCategory } from '../types';
-import { formatThaiDate, formatDateTimeThai } from '../utils/dateUtils';
+import { formatThaiDate, formatDateTimeThai, getTimestampFromDateString } from '../utils/dateUtils';
 import {
   X,
   Send,
@@ -247,6 +247,20 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       finalAssignees = ['ยังไม่ระบุ'];
     }
 
+    const creationTimestamp = editStartDate
+      ? getTimestampFromDateString(editStartDate, task.createdAt)
+      : task.createdAt;
+
+    const updatedLogs = (task.logs || []).map((l) => {
+      if (l.actionType === 'created' && editStartDate) {
+        return {
+          ...l,
+          timestamp: creationTimestamp,
+        };
+      }
+      return l;
+    });
+
     const updatedTask: Task = {
       ...task,
       title: editTitle.trim(),
@@ -256,7 +270,8 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       deadlineDate: editDeadlineDate,
       priority: editPriority,
       detail: editDetail.trim(),
-      logs: task.logs || [],
+      createdAt: creationTimestamp,
+      logs: updatedLogs,
       updatedAt: new Date().toISOString(),
     };
 
