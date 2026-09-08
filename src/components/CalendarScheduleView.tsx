@@ -486,11 +486,11 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     <button
                       type="button"
                       onClick={() => onOpenUpdate(task, 'log')}
-                      className="py-2 px-1 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 hover:border-indigo-600 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-                      title="บันทึก Log ความคืบหน้า"
+                      className="py-2 px-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer group"
+                      title="อัปเดตงาน (Update)"
                     >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Log</span>
+                      <Edit3 className="w-3 h-3 text-white" />
+                      <span>Update</span>
                     </button>
                     <button
                       type="button"

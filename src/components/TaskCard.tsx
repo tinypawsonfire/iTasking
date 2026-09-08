@@ -134,11 +134,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <button
           type="button"
           onClick={() => onOpenUpdate(task, 'log')}
-          className="py-2 px-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-[11px] rounded-xl border border-indigo-100 transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
-          title="บันทึกความคืบหน้า / อัปเดตสถานะ"
+          className="py-2 px-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs cursor-pointer"
+          title="อัปเดตงาน (Update)"
         >
-          <Edit3 className="w-3.5 h-3.5" />
-          <span>บันทึก Log</span>
+          <Edit3 className="w-3.5 h-3.5 text-white" />
+          <span>Update</span>
         </button>
         <button
           type="button"

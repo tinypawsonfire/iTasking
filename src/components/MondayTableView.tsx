@@ -235,7 +235,7 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                       <th className="py-3 px-3 w-44 text-center">Status (สถานะ)</th>
                       <th className="py-3 px-3 w-52 text-center">Timeline (ไทม์ไลน์)</th>
                       <th className="py-3 px-3 w-32 text-center">Priority</th>
-                      <th className="py-3 px-3 w-20 text-center">Log</th>
+                      <th className="py-3 px-3 w-24 text-center">Update</th>
                     </tr>
                   </thead>
 
@@ -406,11 +406,12 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                             </span>
                           </td>
 
-                          {/* Log Count */}
+                          {/* Update Count */}
                           <td className="py-3 px-3 text-center">
                             <button
                               onClick={() => onOpenUpdate(task)}
-                              className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-lg text-xs font-bold transition-colors"
+                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                              title="เปิดบันทึกอัปเดตงาน (Update)"
                             >
                               {task.logs?.length || 0}
                             </button>
