@@ -216,9 +216,6 @@ export const ModernTimelineView: React.FC<ModernTimelineViewProps> = ({
                               {logsCount}
                             </span>
                           )}
-                          <span className="bg-black/25 px-1.5 py-0.5 rounded text-[9px] font-extrabold">
-                            {task.progress}%
-                          </span>
                         </div>
                       </div>
                     )}

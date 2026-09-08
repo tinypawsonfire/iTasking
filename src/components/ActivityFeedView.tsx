@@ -151,17 +151,10 @@ export const ActivityFeedView: React.FC<ActivityFeedViewProps> = ({
                 {log.content}
               </p>
 
-              {/* Status / Progress change indicator */}
-              {(log.progressPercent !== undefined || log.newStatus) && (
+              {/* Status change indicator */}
+              {log.newStatus && (
                 <div className="flex items-center gap-3 text-[11px] text-slate-500 font-semibold pt-1">
-                  {log.progressPercent !== undefined && (
-                    <span className="flex items-center gap-1 text-indigo-600">
-                      <TrendingUp className="w-3 h-3" /> ความคืบหน้า: {log.progressPercent}%
-                    </span>
-                  )}
-                  {log.newStatus && (
-                    <span>• สถานะ: {log.newStatus}</span>
-                  )}
+                  <span>สถานะ: {log.newStatus}</span>
                 </div>
               )}
             </div>

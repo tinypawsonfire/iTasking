@@ -296,39 +296,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Overall Progress Slider */}
-            <div className="bg-white border border-slate-200 rounded-xl p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <TrendingUp className="w-3.5 h-3.5 text-indigo-600" /> ความคืบหน้ารวม ({currentTask.progress}%)
-                </span>
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded ${
-                    currentTask.progress === 100
-                      ? 'bg-emerald-100 text-emerald-800'
-                      : currentTask.progress >= 50
-                      ? 'bg-blue-100 text-blue-800'
-                      : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  {currentTask.progress === 100 ? 'เสร็จสมบูรณ์' : `${currentTask.progress}% Complete`}
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={currentTask.progress}
-                onChange={(e) => handleProgressChange(Number(e.target.value))}
-                className="w-full h-2.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-              <div className="flex justify-between text-[11px] text-slate-400 font-medium mt-1">
-                <span>0% (ยังไม่เริ่ม)</span>
-                <span>50% (กำลังทำ)</span>
-                <span>100% (เสร็จสิ้น)</span>
-              </div>
-            </div>
 
             {/* Sub-tasks Section */}
             <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
@@ -435,21 +402,6 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       <option value="todo">ยังไม่เริ่ม</option>
                     </select>
                   </div>
-
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-500 block mb-1">
-                      ความคืบหน้า ({newLogProgress}%)
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={5}
-                      value={newLogProgress}
-                      onChange={(e) => setNewLogProgress(Number(e.target.value))}
-                      className="w-full h-2 bg-slate-200 rounded-lg appearance-none accent-indigo-600 mt-2"
-                    />
-                  </div>
                 </div>
 
                 <button
@@ -491,10 +443,9 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
                       {log.content}
                     </p>
 
-                    {log.progressPercent !== undefined && (
+                    {log.newStatus && (
                       <div className="flex items-center gap-2 text-[10px] text-indigo-600 font-semibold">
-                        <span>ความคืบหน้า: {log.progressPercent}%</span>
-                        {log.newStatus && <span>• สถานะ: {log.newStatus}</span>}
+                        <span>สถานะ: {log.newStatus}</span>
                       </div>
                     )}
                   </div>

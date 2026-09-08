@@ -154,20 +154,20 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       logTimestamp = chosenDate.toISOString();
     }
 
+    const isNowCompleted = status === 'completed';
+
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
       taskId: task.id,
       author: finalAuthor,
       timestamp: logTimestamp,
       actionType: status !== task.status ? 'status_change' : 'progress_update',
-      content: logText.trim() || `อัปเดตความคืบหน้าเป็น ${progress}% (${status})`,
+      content: logText.trim() || (status !== task.status ? `ปรับสถานะเป็น ${status}` : 'บันทึกอัปเดตงาน'),
       previousStatus: task.status,
       newStatus: status,
-      progressPercent: progress,
+      progressPercent: isNowCompleted ? 100 : (task.progress || 50),
       attachment: newAttachment,
     };
-
-    const isNowCompleted = status === 'completed' || progress === 100;
     const existingAttachments = task.attachments || [];
     const updatedAttachments = newAttachment ? [...existingAttachments, newAttachment] : existingAttachments;
 
@@ -404,44 +404,6 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
                   placeholder="+ พิมพ์ชื่อผู้บันทึกอื่น..."
                   className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-              </div>
-            </div>
-
-            {/* 2. Progress percentage with quick buttons */}
-            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-              <div className="flex justify-between items-center text-xs">
-                <span className="font-bold text-slate-700 flex items-center gap-1">
-                  <TrendingUp className="w-3.5 h-3.5 text-indigo-600" /> ความคืบหน้าปัจจุบัน
-                </span>
-                <span className="font-black text-indigo-600 text-base">{progress}%</span>
-              </div>
-
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={5}
-                value={progress}
-                onChange={(e) => handleQuickPercent(Number(e.target.value))}
-                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-              />
-
-              {/* Quick % buttons */}
-              <div className="flex gap-1.5 pt-1">
-                {[0, 25, 50, 75, 100].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    onClick={() => handleQuickPercent(pct)}
-                    className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      progress === pct
-                        ? 'bg-indigo-600 text-white shadow-xs'
-                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                    }`}
-                  >
-                    {pct === 100 ? '✓ 100% เสร็จ' : `${pct}%`}
-                  </button>
-                ))}
               </div>
             </div>
 

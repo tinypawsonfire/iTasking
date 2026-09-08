@@ -112,28 +112,28 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-slate-900">{completionRate}%</span>
-            <span className="text-xs text-slate-400">({completedTasks.length}/{totalTasks} งาน)</span>
+            <span className="text-3xl font-black text-slate-900">{completedTasks.length}/{totalTasks}</span>
+            <span className="text-xs text-slate-400">งานที่เสร็จสิ้น</span>
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${completionRate}%` }}></div>
+            <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0}%` }}></div>
           </div>
         </div>
 
-        {/* Avg Progress */}
+        {/* Total Tasks */}
         <div className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">ความคืบหน้าเฉลี่ย</span>
+            <span className="text-xs font-bold text-slate-500 uppercase">งานทั้งหมดในระบบ</span>
             <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-indigo-600">{avgProgress}%</span>
-            <span className="text-xs text-slate-400">ภาพรวมโครงการ</span>
+            <span className="text-3xl font-black text-indigo-600">{totalTasks}</span>
+            <span className="text-xs text-slate-400">รายการงานทั้งหมด</span>
           </div>
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-            <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: `${avgProgress}%` }}></div>
+            <div className="h-full bg-indigo-600 rounded-full transition-all" style={{ width: '100%' }}></div>
           </div>
         </div>
 
@@ -196,13 +196,13 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                     <span className="font-bold text-slate-800">{module.name}</span>
                     <span className="text-slate-400 text-[11px]">({completed}/{total} งาน)</span>
                   </div>
-                  <span className="font-extrabold text-indigo-600">{modProg}%</span>
+                  <span className="font-extrabold text-indigo-600">เสร็จ {completed}/{total}</span>
                 </div>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full transition-all"
                     style={{
-                      width: `${modProg}%`,
+                      width: `${total > 0 ? (completed / total) * 100 : 0}%`,
                       backgroundColor: module.color || '#6366f1',
                     }}
                   ></div>
@@ -227,7 +227,7 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
           </div>
 
           <div className="space-y-3.5 max-h-80 overflow-y-auto pr-1">
-            {assigneeStats.map(({ name, total, completed, avgProgress: userProg }) => (
+            {assigneeStats.map(({ name, total, completed }) => (
               <div
                 key={name}
                 className="p-3 bg-slate-50 hover:bg-indigo-50/40 rounded-2xl border border-slate-200/70 transition-all flex items-center justify-between gap-3 text-xs"
@@ -246,9 +246,9 @@ export const ExecutiveDashboard: React.FC<ExecutiveDashboardProps> = ({
                 </div>
 
                 <div className="text-right space-y-1 min-w-[90px]">
-                  <div className="font-black text-indigo-600 text-xs">{userProg}%</div>
+                  <div className="font-bold text-slate-700 text-xs">เสร็จ {completed}/{total}</div>
                   <div className="w-20 bg-slate-200 h-1.5 rounded-full overflow-hidden ml-auto">
-                    <div className="h-full bg-indigo-600 rounded-full" style={{ width: `${userProg}%` }}></div>
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}></div>
                   </div>
                 </div>
               </div>

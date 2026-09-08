@@ -52,8 +52,7 @@ export const AISummaryModal: React.FC<AISummaryModalProps> = ({
 ----------------------------------------
 📈 ภาพรวม:
 • งานทั้งหมด: ${totalTasks} งาน
-• ความคืบหน้าเฉลี่ย: ${avgProgress}%
-• เสร็จสมบูรณ์แล้ว: ${completedTasks.length} งาน (${totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0}%)
+• เสร็จสมบูรณ์แล้ว: ${completedTasks.length}/${totalTasks} งาน
 • กำลังดำเนินการ: ${inProgressTasks.length} งาน
 • รอตรวจ/สัญญา/ติดปัญหา: ${reviewTasks.length} งาน
 • งานที่ต้องเร่งรัด/ใกล้กำหนด: ${urgentTasks.length} งาน
@@ -72,7 +71,7 @@ ${
         .slice(0, 5)
         .map(
           (t) =>
-            ` - [${t.module}] ${t.title} (${t.progress}%) | ผู้ดูแล: ${t.assignees.join(', ')} | กำหนดส่ง: ${t.deadlineText || formatThaiDate(t.deadlineDate)}`
+            ` - [${t.module}] ${t.title} | ผู้ดูแล: ${t.assignees.join(', ')} | กำหนดส่ง: ${t.deadlineText || formatThaiDate(t.deadlineDate)}`
         )
         .join('\n')
     : ' - ไม่มีงานที่กำลังทำ'
@@ -93,7 +92,7 @@ ${
 รายงานโดยระบบ iTasking (Smart Visual Tracking)`;
 
   const lineFormatted = `🚀 [iTasking] อัปเดตสถานะงานประจำสัปดาห์ 📌
-📊 ความคืบหน้ารวม: ${avgProgress}% (${completedTasks.length}/${totalTasks} งานเสร็จแล้ว)
+📊 สถานะภาพรวม: เสร็จแล้ว ${completedTasks.length}/${totalTasks} งาน (${inProgressTasks.length} งานกำลังดำเนินการ)
 
 🔥 งานเร่งด่วนที่ต้องส่งเร็วๆ นี้ (${urgentTasks.length} งาน):
 ${
@@ -149,8 +148,8 @@ ${
           {/* Quick Metrics Strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <div className="bg-slate-50 p-3 rounded-2xl border border-slate-200 text-center">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">ความคืบหน้ารวม</div>
-              <div className="text-lg font-black text-indigo-600">{avgProgress}%</div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase">งานทั้งหมด</div>
+              <div className="text-lg font-black text-indigo-600">{totalTasks} งาน</div>
             </div>
             <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-200 text-center">
               <div className="text-[10px] text-emerald-600 font-bold uppercase">เสร็จสมบูรณ์</div>
@@ -194,8 +193,7 @@ ${
               <ul className="list-disc list-inside space-y-1 text-slate-700 pl-1">
                 {inProgressTasks.slice(0, 5).map((t) => (
                   <li key={t.id}>
-                    <span className="font-bold">{t.title}</span> — คืบหน้า{' '}
-                    <span className="font-bold text-indigo-600">{t.progress}%</span> (ผู้ดูแล:{' '}
+                    <span className="font-bold">{t.title}</span> (ผู้ดูแล:{' '}
                     {t.assignees.join(', ')}) กำหนดส่ง:{' '}
                     {t.deadlineText || formatThaiDate(t.deadlineDate)}
                   </li>

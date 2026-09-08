@@ -115,26 +115,6 @@ export const KanbanBoardView: React.FC<KanbanBoardViewProps> = ({
                       </p>
                     )}
 
-                    {/* Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-                        <span>ความคืบหน้า</span>
-                        <span>{task.progress}%</span>
-                      </div>
-                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all ${
-                            task.progress === 100
-                              ? 'bg-emerald-500'
-                              : task.progress >= 50
-                              ? 'bg-blue-500'
-                              : 'bg-amber-500'
-                          }`}
-                          style={{ width: `${task.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
                     {/* Assignees & Meta */}
                     <div className="flex flex-wrap items-center justify-between gap-1 pt-1 border-t border-slate-100 text-xs">
                       {/* Assignees */}

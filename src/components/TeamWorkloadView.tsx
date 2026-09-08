@@ -94,14 +94,14 @@ export const TeamWorkloadView: React.FC<TeamWorkloadViewProps> = ({
               <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-4 space-y-2">
                 <div className="flex justify-between items-center text-xs">
                   <span className="text-slate-500 font-medium flex items-center gap-1">
-                    <TrendingUp className="w-3.5 h-3.5 text-indigo-500" /> อัตราความคืบหน้าเฉลี่ย
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> ปิดงานสำเร็จแล้ว
                   </span>
-                  <span className="font-bold text-indigo-600">{avgProgress}%</span>
+                  <span className="font-bold text-emerald-600">{completed}/{total} งาน</span>
                 </div>
                 <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-indigo-600 rounded-full transition-all"
-                    style={{ width: `${avgProgress}%` }}
+                    className="h-full bg-emerald-500 rounded-full transition-all"
+                    style={{ width: `${total > 0 ? (completed / total) * 100 : 0}%` }}
                   ></div>
                 </div>
 
@@ -157,8 +157,7 @@ export const TeamWorkloadView: React.FC<TeamWorkloadViewProps> = ({
                           {t.title}
                         </div>
 
-                        <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100 text-[10px]">
-                          <span className="text-slate-400">คืบหน้า: {t.progress}%</span>
+                        <div className="flex items-center justify-end mt-2 pt-1 border-t border-slate-100 text-[10px]">
                           <StatusBadge status={t.status} size="sm" />
                         </div>
                       </div>

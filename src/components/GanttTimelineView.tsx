@@ -284,11 +284,11 @@ export const GanttTimelineView: React.FC<GanttTimelineViewProps> = ({
                                     ? 'rounded-md mx-1'
                                     : ''
                                 }`}
-                                title={`${task.title} (${task.progress}%) - ${week.month} ${week.label}`}
+                                title={`${task.title} - ${week.month} ${week.label}`}
                               >
                                 {progressType === 'start' || progressType === 'single' ? (
                                   <span className="truncate px-1 text-[9px]">
-                                    {task.progress}%
+                                    {task.title}
                                   </span>
                                 ) : null}
                               </div>

@@ -449,22 +449,8 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     </p>
                   )}
 
-                  {/* Metadata Row: Progress, Assignees, Deadline */}
+                  {/* Metadata Row: Assignees, Deadline */}
                   <div className="space-y-2 text-[11px] text-slate-500">
-                    {/* Progress Bar */}
-                    <div>
-                      <div className="flex justify-between font-bold mb-1">
-                        <span>ความคืบหน้า</span>
-                        <span className="text-slate-800">{task.progress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full transition-all"
-                          style={{ width: `${task.progress}%` }}
-                        />
-                      </div>
-                    </div>
-
                     <div className="flex items-center justify-between pt-1">
                       {/* Assignees */}
                       <div className="flex items-center gap-1">
