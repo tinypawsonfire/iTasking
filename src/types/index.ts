@@ -58,9 +58,9 @@ export interface ModuleCategory {
   id: string;
   name: string;
   color: string; // Tailwind color class or hex
-  badgeBg: string;
-  badgeText: string;
-  borderClass: string;
+  badgeBg?: string;
+  badgeText?: string;
+  borderClass?: string;
 }
 
 export interface UserProfile {

@@ -20,6 +20,7 @@ import {
   Cloud,
   CloudOff,
   RefreshCw,
+  Settings,
 } from 'lucide-react';
 import type { UserAuthSession } from './LoginPage';
 
@@ -32,6 +33,7 @@ interface HeaderProps {
   onOpenNewTask: () => void;
   onOpenTaskUpdate: (task: Task) => void;
   onOpenAISummary: () => void;
+  onOpenSettings?: () => void;
   onExportData: () => void;
   onResetData: () => void;
   userSession?: UserAuthSession | null;
@@ -48,6 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenNewTask,
   onOpenTaskUpdate,
   onOpenAISummary,
+  onOpenSettings,
   onExportData,
   onResetData,
   userSession,
@@ -156,10 +159,22 @@ export const Header: React.FC<HeaderProps> = ({
               onOpenTaskUpdate={onOpenTaskUpdate}
             />
 
+            {/* System Settings & Category Management */}
+            {onOpenSettings && (
+              <button
+                onClick={onOpenSettings}
+                title="การตั้งค่าระบบ & จัดการหมวดหมู่ (Settings)"
+                className="px-2.5 py-2 text-slate-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl border border-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline text-xs font-bold">ตั้งค่า</span>
+              </button>
+            )}
+
             <button
               onClick={onExportData}
               title="ดาวน์โหลดไฟล์สำรองข้อมูล (JSON)"
-              className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold flex items-center gap-1 transition-colors"
+              className="p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-xl border border-slate-200 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
             >
               <Download className="w-3.5 h-3.5" />
             </button>

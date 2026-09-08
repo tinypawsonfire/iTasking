@@ -20,6 +20,7 @@ import {
   Users,
   LogOut,
   Building2,
+  Settings,
 } from 'lucide-react';
 import type { UserAuthSession } from './LoginPage';
 
@@ -36,6 +37,7 @@ interface SidebarProps {
   userSession?: UserAuthSession | null;
   onLogout?: () => void;
   onAddCategory?: (name: string) => void;
+  onOpenSettings?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -51,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userSession,
   onLogout,
   onAddCategory,
+  onOpenSettings,
 }) => {
   const [isAddingCat, setIsAddingCat] = React.useState(false);
   const [newCatName, setNewCatName] = React.useState('');
@@ -147,14 +150,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1 pt-3 border-t border-slate-200/60 animate-fadeIn">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2 flex items-center justify-between">
               <span>Categories</span>
-              <button
-                type="button"
-                onClick={() => setIsAddingCat(!isAddingCat)}
-                className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                title="+ เพิ่มหมวดหมู่ใหม่"
-              >
-                <Plus className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1">
+                {onOpenSettings && (
+                  <button
+                    type="button"
+                    onClick={onOpenSettings}
+                    className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                    title="จัดการ & แก้ไขหมวดหมู่ (Settings)"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCat(!isAddingCat)}
+                  className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                  title="+ เพิ่มหมวดหมู่ใหม่"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {isAddingCat && (
@@ -255,6 +270,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="text-[10px] text-rose-600 truncate">ใกล้ถึง/เกินกำหนด</div>
               </div>
             </div>
+          )}
+
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="w-full py-2 px-3 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 rounded-xl text-xs font-bold transition-all border border-slate-200/80 hover:border-indigo-200 flex items-center justify-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <Settings className="w-3.5 h-3.5 text-slate-500" />
+              <span>การตั้งค่าระบบ (Settings)</span>
+            </button>
           )}
 
           <div className="text-center text-[10px] text-slate-400 font-medium">

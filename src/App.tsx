@@ -22,6 +22,7 @@ import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { QuickUpdateModal } from './components/QuickUpdateModal';
 import { CreateTaskModal } from './components/CreateTaskModal';
 import { AISummaryModal } from './components/AISummaryModal';
+import { SettingsModal } from './components/SettingsModal';
 import { EmptyState } from './components/EmptyState';
 import { LoginPage, UserAuthSession } from './components/LoginPage';
 import {
@@ -65,6 +66,15 @@ export function App() {
   const [initialUpdateTab, setInitialUpdateTab] = useState<'log' | 'edit'>('log');
   const [isNewTaskFormOpen, setIsNewTaskFormOpen] = useState(false);
   const [isAISummaryModalOpen, setIsAISummaryModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [customUsers, setCustomUsers] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('iTasking_custom_team');
+      return saved ? JSON.parse(saved) : ['มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
+    } catch {
+      return ['มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
+    }
+  });
 
   // Load clean data from Local Cache first, then sync from Vercel Cloud
   useEffect(() => {
@@ -233,14 +243,14 @@ export function App() {
 
   // Distinct assignees
   const availableAssignees = useMemo(() => {
-    const set = new Set<string>();
+    const set = new Set<string>(customUsers);
     tasks.forEach((t) => {
       t.assignees.forEach((a) => {
         if (a && a !== 'ยังไม่ระบุ') set.add(a);
       });
     });
     return Array.from(set);
-  }, [tasks]);
+  }, [tasks, customUsers]);
 
   const urgentCount = useMemo(() => {
     return tasks.filter((t) => {
@@ -319,6 +329,7 @@ export function App() {
         userSession={authSession}
         onLogout={handleLogout}
         onAddCategory={handleAddCategory}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
       />
 
       {/* Main Content Viewport */}
@@ -331,6 +342,7 @@ export function App() {
           onOpenNewTask={() => setIsNewTaskFormOpen(true)}
           onOpenTaskUpdate={handleOpenUpdate}
           onOpenAISummary={() => setIsAISummaryModalOpen(true)}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
           onExportData={() => exportDataAsJson(tasks)}
           onResetData={handleClearAll}
           userSession={authSession}
@@ -484,6 +496,29 @@ export function App() {
         isOpen={isAISummaryModalOpen}
         onClose={() => setIsAISummaryModalOpen(false)}
         tasks={tasks}
+      />
+
+      {/* Settings Modal (Categories, Team, System) */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        categories={categories}
+        tasks={tasks}
+        onUpdateCategories={(newCats) => {
+          setCategories(newCats);
+          saveCategoriesToStorage(newCats);
+          syncCategoriesToCloud(newCats).catch(() => {});
+        }}
+        onUpdateTasks={handleUpdateTasks}
+        availableUsers={availableAssignees}
+        onUpdateUsers={(newUsers) => {
+          setCustomUsers(newUsers);
+          try {
+            localStorage.setItem('iTasking_custom_team', JSON.stringify(newUsers));
+          } catch {}
+        }}
+        isCloudConnected={isCloudConnected}
+        onRefreshCloud={handleRefreshCloud}
       />
     </div>
   );
