@@ -35,6 +35,7 @@ interface SidebarProps {
   urgentCount: number;
   userSession?: UserAuthSession | null;
   onLogout?: () => void;
+  onAddCategory?: (name: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -49,7 +50,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   urgentCount,
   userSession,
   onLogout,
+  onAddCategory,
 }) => {
+  const [isAddingCat, setIsAddingCat] = React.useState(false);
+  const [newCatName, setNewCatName] = React.useState('');
+
+  const handleCreateCategory = () => {
+    if (newCatName.trim() && onAddCategory) {
+      onAddCategory(newCatName.trim());
+      setNewCatName('');
+      setIsAddingCat(false);
+    }
+  };
+
   return (
     <aside
       className={`glass-panel border-r border-slate-200/80 transition-all duration-300 flex flex-col justify-between z-20 shrink-0 hidden md:flex ${
@@ -134,8 +147,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1 pt-3 border-t border-slate-200/60 animate-fadeIn">
             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2 flex items-center justify-between">
               <span>Categories</span>
-              <Layers className="w-3 h-3 text-slate-400" />
+              <button
+                type="button"
+                onClick={() => setIsAddingCat(!isAddingCat)}
+                className="p-1 hover:bg-slate-200 rounded-md text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                title="+ เพิ่มหมวดหมู่ใหม่"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
             </div>
+
+            {isAddingCat && (
+              <div className="px-2 pb-2 flex items-center gap-1.5 animate-fadeIn">
+                <input
+                  type="text"
+                  autoFocus
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreateCategory();
+                    if (e.key === 'Escape') setIsAddingCat(false);
+                  }}
+                  placeholder="ชื่อหมวดหมู่..."
+                  className="w-full text-xs px-2.5 py-1.5 bg-white border border-indigo-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={handleCreateCategory}
+                  className="px-2.5 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shrink-0 hover:bg-indigo-700 cursor-pointer"
+                >
+                  เพิ่ม
+                </button>
+              </div>
+            )}
 
             <button
               onClick={() => setSelectedModule('all')}

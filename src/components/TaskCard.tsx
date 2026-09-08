@@ -13,11 +13,12 @@ import {
   Clock,
   TrendingUp,
   Edit3,
+  Settings2,
 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
-  onOpenUpdate: (task: Task) => void;
+  onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onQuickStatusChange: (taskId: string, newStatus: TaskStatus) => void;
 }
 
@@ -34,9 +35,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       {/* Top Header: Module, Deadline Alert Badge, Status */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200">
-            {task.module}
-          </span>
+          <button
+            type="button"
+            onClick={() => onOpenUpdate(task, 'edit')}
+            className="px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-300 transition-all flex items-center gap-1 cursor-pointer"
+            title="คลิกเพื่อเปลี่ยนหมวดหมู่ / แก้ไขงาน"
+          >
+            <span>{task.module}</span>
+            <Edit3 className="w-2.5 h-2.5 text-slate-400" />
+          </button>
           {/* Deadline Alert Tag */}
           {alertInfo.urgency !== 'completed' && (
             <span
@@ -57,7 +64,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 
       {/* Task Title & Detail */}
       <div className="space-y-1">
-        <h4 className="font-bold text-slate-900 text-base leading-snug group-hover:text-indigo-600 transition-colors">
+        <h4
+          onClick={() => onOpenUpdate(task, 'edit')}
+          className="font-bold text-slate-900 text-base leading-snug hover:text-indigo-600 transition-colors cursor-pointer"
+          title="คลิกเพื่อแก้ไขข้อมูลงาน"
+        >
           {task.title}
         </h4>
         {task.detail && (
@@ -128,14 +139,27 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* Quick Action Button */}
-      <button
-        onClick={() => onOpenUpdate(task)}
-        className="w-full py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs rounded-xl border border-indigo-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-      >
-        <Edit3 className="w-3.5 h-3.5" />
-        <span>อัปเดตสถานะ / บันทึก Log</span>
-      </button>
+      {/* Action Buttons: Log & Edit */}
+      <div className="grid grid-cols-2 gap-2 w-full pt-1">
+        <button
+          type="button"
+          onClick={() => onOpenUpdate(task, 'log')}
+          className="py-2 px-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs rounded-xl border border-indigo-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          title="บันทึกความคืบหน้า / อัปเดตสถานะ"
+        >
+          <Edit3 className="w-3.5 h-3.5" />
+          <span>บันทึก Log</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onOpenUpdate(task, 'edit')}
+          className="py-2 px-2 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          title="แก้ไขชื่องาน, หมวดหมู่, ผู้ดูแล, วันส่ง"
+        >
+          <Settings2 className="w-3.5 h-3.5" />
+          <span>แก้ไขข้อมูล</span>
+        </button>
+      </div>
     </div>
   );
 };

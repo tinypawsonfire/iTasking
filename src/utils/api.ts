@@ -131,3 +131,47 @@ export async function checkCloudHealth(): Promise<{ dbConfigured: boolean; dbOnl
   }
   return { dbConfigured: false, dbOnline: false };
 }
+
+/**
+ * Fetch categories from Vercel Cloud Database (/api/categories).
+ */
+export async function fetchCategoriesFromCloud(): Promise<{ categories: ModuleCategory[]; isCloudConnected: boolean }> {
+  try {
+    const res = await fetch('/api/categories', {
+      headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.dbConnected && Array.isArray(data.categories) && data.categories.length > 0) {
+        saveCategoriesToStorage(data.categories);
+        return { categories: data.categories, isCloudConnected: true };
+      }
+    }
+  } catch {
+    // Fallback
+  }
+
+  return {
+    categories: loadCategoriesFromStorage(),
+    isCloudConnected: false,
+  };
+}
+
+/**
+ * Save categories to Vercel Cloud Database (/api/categories).
+ */
+export async function syncCategoriesToCloud(categories: ModuleCategory[]): Promise<boolean> {
+  saveCategoriesToStorage(categories);
+  try {
+    const res = await fetch('/api/categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categories }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

@@ -26,7 +26,7 @@ import confetti from 'canvas-confetti';
 interface MondayTableViewProps {
   tasks: Task[];
   modules: ModuleCategory[];
-  onOpenUpdate: (task: Task) => void;
+  onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onQuickStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onAddTask: (newTask: Task) => void;
 }
@@ -271,8 +271,9 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                             <div className="flex items-center justify-between gap-2.5">
                               <div className="space-y-0.5 min-w-0">
                                 <span
-                                  onClick={() => onOpenUpdate(task)}
+                                  onClick={() => onOpenUpdate(task, 'edit')}
                                   className="font-bold text-slate-900 hover:text-[#0073ea] transition-colors cursor-pointer text-xs sm:text-sm block truncate"
+                                  title="คลิกเพื่อแก้ไขข้อมูลงาน & หมวดหมู่"
                                 >
                                   {task.title}
                                 </span>
@@ -292,8 +293,8 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
 
                                 {/* Monday Chat Bubble Icon */}
                                 <button
-                                  onClick={() => onOpenUpdate(task)}
-                                  className={`p-1.5 rounded-xl flex items-center gap-1 transition-all shadow-2xs ${
+                                  onClick={() => onOpenUpdate(task, 'log')}
+                                  className={`p-1.5 rounded-xl flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
                                     task.logs && task.logs.length > 0
                                       ? 'bg-indigo-50 text-[#0073ea] border border-blue-200 hover:bg-blue-100'
                                       : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100 opacity-0 group-hover:opacity-100'

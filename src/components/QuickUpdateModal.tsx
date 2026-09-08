@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import type { Task, TaskStatus, ActivityLog, Attachment } from '../types';
+import React, { useState, useEffect } from 'react';
+import type { Task, TaskStatus, Priority, ActivityLog, Attachment, ModuleCategory } from '../types';
 import { formatThaiDate, formatDateTimeThai } from '../utils/dateUtils';
 import {
   X,
@@ -14,8 +14,15 @@ import {
   TrendingUp,
   Paperclip,
   Link,
-  Image,
   ExternalLink,
+  Edit3,
+  Settings2,
+  Trash2,
+  Plus,
+  Tag,
+  AlertTriangle,
+  Check,
+  Save,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -24,7 +31,10 @@ interface QuickUpdateModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveUpdate: (updatedTask: Task) => void;
+  onDeleteTask?: (taskId: string) => void;
   availableUsers: string[];
+  modules?: ModuleCategory[];
+  initialTab?: 'log' | 'edit';
 }
 
 export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
@@ -32,10 +42,16 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   isOpen,
   onClose,
   onSaveUpdate,
+  onDeleteTask,
   availableUsers,
+  modules = [],
+  initialTab = 'log',
 }) => {
   if (!isOpen || !task) return null;
 
+  const [activeTab, setActiveTab] = useState<'log' | 'edit'>(initialTab);
+
+  // Tab 1: Log & Progress State
   const [authorName, setAuthorName] = useState(task.assignees[0] || 'ผู้รับผิดชอบ');
   const [customAuthor, setCustomAuthor] = useState('');
   const [logText, setLogText] = useState('');
@@ -46,6 +62,46 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   const [showAttachmentInput, setShowAttachmentInput] = useState(false);
   const [attachmentName, setAttachmentName] = useState('');
   const [attachmentUrl, setAttachmentUrl] = useState('');
+
+  // Tab 2: Edit Task Info & Category State
+  const [editTitle, setEditTitle] = useState(task.title || '');
+  const [editModule, setEditModule] = useState(task.module || '');
+  const [isCreatingNewModule, setIsCreatingNewModule] = useState(false);
+  const [newModuleName, setNewModuleName] = useState('');
+  const [editAssignees, setEditAssignees] = useState<string[]>(task.assignees || []);
+  const [assigneeInput, setAssigneeInput] = useState('');
+  const [editStartDate, setEditStartDate] = useState(task.startDate || '');
+  const [editDeadlineDate, setEditDeadlineDate] = useState(task.deadlineDate || '');
+  const [editPriority, setEditPriority] = useState<Priority>(task.priority || 'medium');
+  const [editDetail, setEditDetail] = useState(task.detail || '');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Synchronize state whenever task or initialTab changes
+  useEffect(() => {
+    if (task) {
+      setActiveTab(initialTab);
+      setAuthorName(task.assignees[0] || 'ผู้รับผิดชอบ');
+      setCustomAuthor('');
+      setLogText('');
+      setStatus(task.status);
+      setProgress(task.progress);
+      setAttachmentName('');
+      setAttachmentUrl('');
+      setShowAttachmentInput(false);
+
+      setEditTitle(task.title || '');
+      setEditModule(task.module || '');
+      setIsCreatingNewModule(false);
+      setNewModuleName('');
+      setEditAssignees([...(task.assignees || [])]);
+      setAssigneeInput('');
+      setEditStartDate(task.startDate || '');
+      setEditDeadlineDate(task.deadlineDate || '');
+      setEditPriority(task.priority || 'medium');
+      setEditDetail(task.detail || '');
+      setShowDeleteConfirm(false);
+    }
+  }, [task, initialTab, isOpen]);
 
   const finalAuthor = customAuthor.trim() || authorName;
 
@@ -58,7 +114,8 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Submit Tab 1: Log & Progress
+  const handleLogSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!logText.trim() && progress === task.progress && status === task.status && !attachmentUrl.trim()) {
       onClose();
@@ -90,7 +147,6 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
     };
 
     const isNowCompleted = status === 'completed' || progress === 100;
-
     const existingAttachments = task.attachments || [];
     const updatedAttachments = newAttachment ? [...existingAttachments, newAttachment] : existingAttachments;
 
@@ -111,225 +167,659 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
     }
   };
 
+  // Multi-Assignee Handlers for Tab 2
+  const handleAddAssignee = (nameToAdd: string) => {
+    const clean = nameToAdd.trim();
+    if (clean && !editAssignees.includes(clean)) {
+      setEditAssignees([...editAssignees, clean]);
+    }
+  };
+
+  const handleRemoveAssignee = (indexToRemove: number) => {
+    setEditAssignees(editAssignees.filter((_, idx) => idx !== indexToRemove));
+  };
+
+  const handleAssigneeInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      if (assigneeInput.trim()) {
+        const parts = assigneeInput.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+        const newOnes = parts.filter((p) => !editAssignees.includes(p));
+        if (newOnes.length > 0) {
+          setEditAssignees([...editAssignees, ...newOnes]);
+        }
+        setAssigneeInput('');
+      }
+    }
+  };
+
+  // Submit Tab 2: Edit Task Info & Category
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim()) {
+      alert('กรุณาระบุชื่องาน');
+      return;
+    }
+
+    const finalModule = isCreatingNewModule
+      ? newModuleName.trim() || editModule || 'ทั่วไป'
+      : editModule || 'ทั่วไป';
+
+    let finalAssignees = [...editAssignees];
+    if (assigneeInput.trim()) {
+      const parts = assigneeInput.split(/[,/]+/).map((s) => s.trim()).filter(Boolean);
+      parts.forEach((p) => {
+        if (!finalAssignees.includes(p)) finalAssignees.push(p);
+      });
+    }
+    if (finalAssignees.length === 0) {
+      finalAssignees = ['ยังไม่ระบุ'];
+    }
+
+    // Build changes summary for audit log
+    const changes: string[] = [];
+    if (editTitle.trim() !== task.title) changes.push(`ชื่อ: "${editTitle.trim()}"`);
+    if (finalModule !== task.module) changes.push(`หมวดหมู่: "${finalModule}"`);
+    if (JSON.stringify(finalAssignees) !== JSON.stringify(task.assignees)) {
+      changes.push(`ผู้ดูแล: ${finalAssignees.join(', ')}`);
+    }
+    if (editDeadlineDate !== task.deadlineDate) {
+      changes.push(`กำหนดส่ง: ${editDeadlineDate || 'ไม่ระบุ'}`);
+    }
+
+    const changeSummary = changes.length > 0 ? changes.join(' | ') : 'ปรับปรุงข้อมูลงาน';
+
+    const editLog: ActivityLog = {
+      id: `log-${Date.now()}`,
+      taskId: task.id,
+      author: finalAuthor || finalAssignees[0] || 'ผู้ดูแล',
+      timestamp: new Date().toISOString(),
+      actionType: 'note',
+      content: `⚙️ แก้ไขข้อมูล: ${changeSummary}`,
+      previousStatus: task.status,
+      newStatus: task.status,
+      progressPercent: task.progress,
+    };
+
+    const updatedTask: Task = {
+      ...task,
+      title: editTitle.trim(),
+      module: finalModule,
+      assignees: finalAssignees,
+      startDate: editStartDate,
+      deadlineDate: editDeadlineDate,
+      priority: editPriority,
+      detail: editDetail.trim(),
+      logs: [editLog, ...(task.logs || [])],
+      updatedAt: new Date().toISOString(),
+    };
+
+    onSaveUpdate(updatedTask);
+    onClose();
+  };
+
+  // Distinct list of all available modules
+  const allModulesList = Array.from(
+    new Set([
+      ...(modules.map((m) => m.name)),
+      task.module,
+      'PARTNER',
+      'OPERATION',
+      'MARKETING',
+      'HR',
+      'FINANCE',
+      'IT / DEV',
+      'ICI',
+    ].filter(Boolean))
+  );
+
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
+      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 w-full max-w-xl max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-start justify-between">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded text-[11px] font-bold bg-white/20 text-white">
+        <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex items-start justify-between">
+          <div className="space-y-1.5 flex-1 pr-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-bold bg-white/20 text-white border border-white/20">
                 {task.module}
               </span>
-              <span className="text-xs text-indigo-200">
+              <span className="text-xs text-indigo-200 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
                 กำหนดส่ง: {task.deadlineText || formatThaiDate(task.deadlineDate)}
               </span>
             </div>
-            <h3 className="text-lg font-bold text-white tracking-tight">{task.title}</h3>
+            <h3 className="text-lg font-bold text-white tracking-tight line-clamp-1">
+              {task.title}
+            </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-300 hover:text-white hover:bg-white/10 p-1.5 rounded-xl transition-colors"
+            className="text-slate-300 hover:text-white hover:bg-white/10 p-1.5 rounded-xl transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Update Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 text-sm overflow-y-auto">
-          {/* 1. Who is updating? */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-indigo-600" /> ผู้บันทึกความคืบหน้า
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {task.assignees.map((name) => (
-                <button
-                  key={name}
-                  type="button"
-                  onClick={() => {
-                    setAuthorName(name);
-                    setCustomAuthor('');
-                  }}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-                    authorName === name && !customAuthor
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {name}
-                </button>
-              ))}
-              <input
-                type="text"
-                value={customAuthor}
-                onChange={(e) => setCustomAuthor(e.target.value)}
-                placeholder="+ พิมพ์ชื่อผู้บันทึกอื่น..."
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-          </div>
+        {/* Dual Mode Tab Selector */}
+        <div className="px-5 pt-3 border-b border-slate-100 bg-slate-50/50 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveTab('log')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'log'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            <span>1. บันทึก Log & ความคืบหน้า</span>
+          </button>
 
-          {/* 2. Progress percentage with quick buttons */}
-          <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-bold text-slate-700 flex items-center gap-1">
-                <TrendingUp className="w-3.5 h-3.5 text-indigo-600" /> ความคืบหน้าปัจจุบัน
-              </span>
-              <span className="font-black text-indigo-600 text-base">{progress}%</span>
-            </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('edit')}
+            className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
+              activeTab === 'edit'
+                ? 'border-indigo-600 text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Settings2 className="w-3.5 h-3.5" />
+            <span>2. แก้ไขข้อมูลงาน & หมวดหมู่</span>
+          </button>
+        </div>
 
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={progress}
-              onChange={(e) => handleQuickPercent(Number(e.target.value))}
-              className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-
-            {/* Quick % buttons */}
-            <div className="flex gap-1.5 pt-1">
-              {[0, 25, 50, 75, 100].map((pct) => (
-                <button
-                  key={pct}
-                  type="button"
-                  onClick={() => handleQuickPercent(pct)}
-                  className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all ${
-                    progress === pct
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {pct === 100 ? '✓ 100% เสร็จ' : `${pct}%`}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* 3. Status picker */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 block">สถานะงาน</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-semibold">
-              {[
-                { id: 'in_progress', label: 'กำลังทำ', color: 'peer-checked:bg-blue-600 peer-checked:text-white' },
-                { id: 'review', label: 'รอตรวจ / รอสัญญา', color: 'peer-checked:bg-amber-500 peer-checked:text-white' },
-                { id: 'blocked', label: 'ติดปัญหา', color: 'peer-checked:bg-rose-600 peer-checked:text-white' },
-                { id: 'completed', label: 'เสร็จสมบูรณ์', color: 'peer-checked:bg-emerald-600 peer-checked:text-white' },
-              ].map((st) => (
-                <label key={st.id} className="cursor-pointer">
-                  <input
-                    type="radio"
-                    name="status"
-                    value={st.id}
-                    checked={status === st.id}
-                    onChange={() => {
-                      setStatus(st.id as TaskStatus);
-                      if (st.id === 'completed') setProgress(100);
-                    }}
-                    className="sr-only peer"
-                  />
-                  <div
-                    className={`p-2.5 rounded-xl text-center border border-slate-200 bg-white text-slate-700 transition-all ${st.color} peer-checked:border-transparent peer-checked:shadow-xs hover:bg-slate-50`}
-                  >
-                    {st.label}
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* 4. Log Note / Description */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700 block">
-                บันทึกรายละเอียดความคืบหน้า (Log Update)
+        {/* TAB 1: Log & Progress Update */}
+        {activeTab === 'log' && (
+          <form onSubmit={handleLogSubmit} className="p-5 sm:p-6 space-y-4 text-sm overflow-y-auto">
+            {/* 1. Who is updating? */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-indigo-600" /> ผู้บันทึกความคืบหน้า
               </label>
-              <button
-                type="button"
-                onClick={() => setShowAttachmentInput(!showAttachmentInput)}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1"
-              >
-                <Paperclip className="w-3.5 h-3.5" />
-                <span>{showAttachmentInput ? 'ซ่อนแนบลิงก์' : '+ แนบรูป / ลิงก์เอกสาร'}</span>
-              </button>
-            </div>
-            <textarea
-              rows={3}
-              autoFocus
-              value={logText}
-              onChange={(e) => setLogText(e.target.value)}
-              placeholder="พิมพ์อัปเดตสั้นๆ เช่น ได้รับ API แล้ว, สรุปประชุมกับ True เรียบร้อย, อยู่ระหว่างทดสอบ..."
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400 leading-relaxed resize-none"
-            />
-          </div>
-
-          {/* Optional Attachment inputs */}
-          {showAttachmentInput && (
-            <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-2 text-xs animate-fadeIn">
-              <span className="font-bold text-indigo-900 block flex items-center gap-1">
-                <Link className="w-3.5 h-3.5" /> แนบหลักฐาน / ลิงก์เอกสาร (Proof of Work)
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="flex flex-wrap gap-2">
+                {task.assignees.map((name) => (
+                  <button
+                    key={name}
+                    type="button"
+                    onClick={() => {
+                      setAuthorName(name);
+                      setCustomAuthor('');
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                      authorName === name && !customAuthor
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    {name}
+                  </button>
+                ))}
                 <input
                   type="text"
-                  value={attachmentName}
-                  onChange={(e) => setAttachmentName(e.target.value)}
-                  placeholder="ชื่อไฟล์ (เช่น ภาพระบบ, สัญญา Google Drive)"
-                  className="px-3 py-1.5 bg-white border border-indigo-200 rounded-xl focus:outline-none"
-                />
-                <input
-                  type="url"
-                  value={attachmentUrl}
-                  onChange={(e) => setAttachmentUrl(e.target.value)}
-                  placeholder="URL ลิงก์ (https://drive.google.com/... หรือภาพ)"
-                  className="px-3 py-1.5 bg-white border border-indigo-200 rounded-xl focus:outline-none"
+                  value={customAuthor}
+                  onChange={(e) => setCustomAuthor(e.target.value)}
+                  placeholder="+ พิมพ์ชื่อผู้บันทึกอื่น..."
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
-          )}
 
-          {/* Existing Attachments Display */}
-          {task.attachments && task.attachments.length > 0 && (
-            <div className="pt-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
-                ไฟล์ & เอกสารแนบในงานนี้
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {task.attachments.map((att) => (
-                  <a
-                    key={att.id}
-                    href={att.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+            {/* 2. Progress percentage with quick buttons */}
+            <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-bold text-slate-700 flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-indigo-600" /> ความคืบหน้าปัจจุบัน
+                </span>
+                <span className="font-black text-indigo-600 text-base">{progress}%</span>
+              </div>
+
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={progress}
+                onChange={(e) => handleQuickPercent(Number(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+              />
+
+              {/* Quick % buttons */}
+              <div className="flex gap-1.5 pt-1">
+                {[0, 25, 50, 75, 100].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => handleQuickPercent(pct)}
+                    className={`flex-1 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      progress === pct
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-100'
+                    }`}
                   >
-                    <ExternalLink className="w-3 h-3" />
-                    <span>{att.name}</span>
-                  </a>
+                    {pct === 100 ? '✓ 100% เสร็จ' : `${pct}%`}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          {/* Submit buttons */}
-          <div className="pt-3 flex items-center justify-end gap-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors"
-            >
-              ยกเลิก
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
-            >
-              <Send className="w-3.5 h-3.5" /> บันทึกการอัปเดต
-            </button>
-          </div>
-        </form>
+            {/* 3. Status picker */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">สถานะงาน</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-semibold">
+                {[
+                  { id: 'in_progress', label: 'กำลังทำ', color: 'peer-checked:bg-blue-600 peer-checked:text-white' },
+                  { id: 'review', label: 'รอตรวจ / รอสัญญา', color: 'peer-checked:bg-amber-500 peer-checked:text-white' },
+                  { id: 'blocked', label: 'ติดปัญหา', color: 'peer-checked:bg-rose-600 peer-checked:text-white' },
+                  { id: 'completed', label: 'เสร็จสมบูรณ์', color: 'peer-checked:bg-emerald-600 peer-checked:text-white' },
+                ].map((st) => (
+                  <label key={st.id} className="cursor-pointer">
+                    <input
+                      type="radio"
+                      name="status"
+                      value={st.id}
+                      checked={status === st.id}
+                      onChange={() => {
+                        setStatus(st.id as TaskStatus);
+                        if (st.id === 'completed') setProgress(100);
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className={`p-2.5 rounded-xl text-center border border-slate-200 bg-white text-slate-700 transition-all ${st.color} peer-checked:border-transparent peer-checked:shadow-xs hover:bg-slate-50`}
+                    >
+                      {st.label}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. Log Note / Description */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 block">
+                  บันทึกรายละเอียดความคืบหน้า (Log Update)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowAttachmentInput(!showAttachmentInput)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Paperclip className="w-3.5 h-3.5" />
+                  <span>{showAttachmentInput ? 'ซ่อนแนบลิงก์' : '+ แนบรูป / ลิงก์เอกสาร'}</span>
+                </button>
+              </div>
+              <textarea
+                rows={3}
+                value={logText}
+                onChange={(e) => setLogText(e.target.value)}
+                placeholder="พิมพ์อัปเดตสั้นๆ เช่น ได้รับ API แล้ว, สรุปประชุมกับ True เรียบร้อย, อยู่ระหว่างทดสอบ..."
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400 leading-relaxed resize-none"
+              />
+            </div>
+
+            {/* Optional Attachment inputs */}
+            {showAttachmentInput && (
+              <div className="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-2 text-xs animate-fadeIn">
+                <span className="font-bold text-indigo-900 block flex items-center gap-1">
+                  <Link className="w-3.5 h-3.5" /> แนบหลักฐาน / ลิงก์เอกสาร (Proof of Work)
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={attachmentName}
+                    onChange={(e) => setAttachmentName(e.target.value)}
+                    placeholder="ชื่อไฟล์ (เช่น ภาพระบบ, สัญญา Google Drive)"
+                    className="px-3 py-1.5 bg-white border border-indigo-200 rounded-xl focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={attachmentUrl}
+                    onChange={(e) => setAttachmentUrl(e.target.value)}
+                    placeholder="URL ลิงก์ (https://drive.google.com/... หรือภาพ)"
+                    className="px-3 py-1.5 bg-white border border-indigo-200 rounded-xl focus:outline-none"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Existing Attachments Display */}
+            {task.attachments && task.attachments.length > 0 && (
+              <div className="pt-2">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                  ไฟล์ & เอกสารแนบในงานนี้
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {task.attachments.map((att) => (
+                    <a
+                      key={att.id}
+                      href={att.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      <span>{att.name}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Submit buttons */}
+            <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setActiveTab('edit')}
+                className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
+              >
+                <Settings2 className="w-3.5 h-3.5" />
+                <span>ต้องการแก้ไขชื่องาน หรือ หมวดหมู่?</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" /> บันทึกการอัปเดต
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {/* TAB 2: Full Task Info & Category Editing */}
+        {activeTab === 'edit' && (
+          <form onSubmit={handleEditSubmit} className="p-5 sm:p-6 space-y-4 text-sm overflow-y-auto">
+            {/* 1. Task Title */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <Edit3 className="w-3.5 h-3.5 text-indigo-600" /> ชื่องาน / โปรเจกต์
+              </label>
+              <input
+                type="text"
+                required
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="ระบุชื่องาน..."
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+              />
+            </div>
+
+            {/* 2. Category / Module Editing */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-indigo-600" /> หมวดหมู่ / ฝ่าย (Category / Module)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsCreatingNewModule(!isCreatingNewModule)}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>{isCreatingNewModule ? 'เลือกจากรายการเดิม' : '+ สร้างหมวดหมู่ใหม่'}</span>
+                </button>
+              </div>
+
+              {!isCreatingNewModule ? (
+                <select
+                  value={editModule}
+                  onChange={(e) => {
+                    if (e.target.value === '__new__') {
+                      setIsCreatingNewModule(true);
+                    } else {
+                      setEditModule(e.target.value);
+                    }
+                  }}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {allModulesList.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                  <option value="__new__">+ สร้างหมวดหมู่ใหม่...</option>
+                </select>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={newModuleName}
+                    onChange={(e) => setNewModuleName(e.target.value)}
+                    placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ เช่น PARTNER, CLAIM, ICI..."
+                    className="flex-1 px-3.5 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (newModuleName.trim()) {
+                        setEditModule(newModuleName.trim());
+                        setIsCreatingNewModule(false);
+                      } else {
+                        setIsCreatingNewModule(false);
+                      }
+                    }}
+                    className="px-3 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shrink-0 cursor-pointer"
+                  >
+                    ใช้ชื่อนี้
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Multi-Assignee Manager (Chips) */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5 text-indigo-600" /> ผู้รับผิดชอบ (สามารถใส่ได้หลายคน)
+              </label>
+
+              <div className="min-h-[46px] p-2 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center gap-1.5 focus-within:bg-white focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-200 transition-all">
+                {editAssignees.map((name, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 shadow-2xs animate-fadeIn"
+                  >
+                    <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] flex items-center justify-center font-bold">
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <span>{name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAssignee(idx)}
+                      className="ml-0.5 text-indigo-400 hover:text-rose-600 hover:bg-rose-50 rounded p-0.5 transition-colors cursor-pointer"
+                      title={`ลบ ${name}`}
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </span>
+                ))}
+
+                <input
+                  type="text"
+                  value={assigneeInput}
+                  onChange={(e) => setAssigneeInput(e.target.value)}
+                  onKeyDown={handleAssigneeInputKeyDown}
+                  placeholder={editAssignees.length === 0 ? 'พิมพ์ชื่อแล้วกด Enter...' : '+ เพิ่มอีกคน...'}
+                  className="flex-1 min-w-[130px] bg-transparent text-xs py-1 px-1.5 text-slate-800 focus:outline-none"
+                />
+              </div>
+
+              {/* Team Suggestion Pills */}
+              {availableUsers.length > 0 && (
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-[11px] text-slate-400 font-medium">เลือกด่วน:</span>
+                  {availableUsers.map((u) => {
+                    const isAdded = editAssignees.includes(u);
+                    return (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => {
+                          if (isAdded) {
+                            setEditAssignees(editAssignees.filter((name) => name !== u));
+                          } else {
+                            handleAddAssignee(u);
+                          }
+                        }}
+                        className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border transition-all cursor-pointer ${
+                          isAdded
+                            ? 'bg-indigo-600 text-white border-indigo-600'
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {isAdded ? `✓ ${u}` : `+ ${u}`}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 4. Dates: Start & Deadline */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-indigo-600" /> วันที่เริ่มงาน (Start Date)
+                </label>
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-rose-500" /> กำหนดส่ง (Deadline Date)
+                </label>
+                <input
+                  type="date"
+                  value={editDeadlineDate}
+                  onChange={(e) => setEditDeadlineDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            {/* 5. Priority */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">ระดับความสำคัญ (Priority)</label>
+              <div className="grid grid-cols-4 gap-2 text-xs font-semibold">
+                {[
+                  { id: 'urgent', label: '🔴 ด่วนที่สุด', color: 'peer-checked:bg-rose-600 peer-checked:text-white' },
+                  { id: 'high', label: '🟠 สูง', color: 'peer-checked:bg-amber-500 peer-checked:text-white' },
+                  { id: 'medium', label: '🔵 ปานกลาง', color: 'peer-checked:bg-blue-600 peer-checked:text-white' },
+                  { id: 'low', label: '⚪ ทั่วไป', color: 'peer-checked:bg-slate-600 peer-checked:text-white' },
+                ].map((p) => (
+                  <label key={p.id} className="cursor-pointer">
+                    <input
+                      type="radio"
+                      name="priority"
+                      value={p.id}
+                      checked={editPriority === p.id}
+                      onChange={() => setEditPriority(p.id as Priority)}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className={`p-2 rounded-xl text-center border border-slate-200 bg-white text-slate-700 transition-all ${p.color} peer-checked:border-transparent peer-checked:shadow-xs hover:bg-slate-50`}
+                    >
+                      {p.label}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* 6. Task Detail / Description */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 block">รายละเอียดงาน (Description)</label>
+              <textarea
+                rows={3}
+                value={editDetail}
+                onChange={(e) => setEditDetail(e.target.value)}
+                placeholder="ระบุรายละเอียดงาน สัญญา หรือข้อกำหนดเพิ่มเติม..."
+                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-slate-800 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400 leading-relaxed resize-none"
+              />
+            </div>
+
+            {/* Delete Confirmation Box if triggered */}
+            {showDeleteConfirm && (
+              <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl space-y-2 animate-fadeIn">
+                <div className="flex items-center gap-2 text-rose-800 font-bold text-xs">
+                  <AlertTriangle className="w-4 h-4 text-rose-600" />
+                  <span>ยืนยันการลบงานนี้หรือไม่?</span>
+                </div>
+                <p className="text-xs text-rose-600">
+                  ชื่องาน "${task.title}" จะถูกลบออกจากฐานข้อมูล Cloud และระบบทันที
+                </p>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onDeleteTask) {
+                        onDeleteTask(task.id);
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  >
+                    ยืนยันลบงาน
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Action Row */}
+            <div className="pt-3 flex items-center justify-between gap-2 border-t border-slate-100">
+              {onDeleteTask && !showDeleteConfirm ? (
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 font-semibold text-xs rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>ลบงานนี้</span>
+                </button>
+              ) : (
+                <div></div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Save className="w-3.5 h-3.5" /> บันทึกการแก้ไข
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

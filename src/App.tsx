@@ -28,6 +28,9 @@ import {
   fetchTasksFromCloud,
   syncAllTasksToCloud,
   syncTaskToCloud,
+  deleteTaskFromCloud,
+  fetchCategoriesFromCloud,
+  syncCategoriesToCloud,
 } from './utils/api';
 
 export function App() {
@@ -59,6 +62,7 @@ export function App() {
   // Modals
   const [activeTaskToUpdate, setActiveTaskToUpdate] = useState<Task | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [initialUpdateTab, setInitialUpdateTab] = useState<'log' | 'edit'>('log');
   const [isNewTaskFormOpen, setIsNewTaskFormOpen] = useState(false);
   const [isAISummaryModalOpen, setIsAISummaryModalOpen] = useState(false);
 
@@ -71,11 +75,14 @@ export function App() {
 
     // 2. Fetch live data from Vercel Cloud Database
     setIsSyncing(true);
-    fetchTasksFromCloud()
-      .then((res) => {
-        if (res.isCloudConnected) {
+    Promise.all([fetchTasksFromCloud(), fetchCategoriesFromCloud()])
+      .then(([tasksRes, catsRes]) => {
+        if (tasksRes.isCloudConnected) {
           setIsCloudConnected(true);
-          setTasks(res.tasks);
+          setTasks(tasksRes.tasks);
+        }
+        if (catsRes.isCloudConnected && catsRes.categories.length > 0) {
+          setCategories(catsRes.categories);
         }
       })
       .catch(() => {})
@@ -87,9 +94,15 @@ export function App() {
   const handleRefreshCloud = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetchTasksFromCloud();
-      setIsCloudConnected(res.isCloudConnected);
-      setTasks(res.tasks);
+      const [tasksRes, catsRes] = await Promise.all([
+        fetchTasksFromCloud(),
+        fetchCategoriesFromCloud(),
+      ]);
+      setIsCloudConnected(tasksRes.isCloudConnected);
+      setTasks(tasksRes.tasks);
+      if (catsRes.categories.length > 0) {
+        setCategories(catsRes.categories);
+      }
     } catch {
       // offline
     } finally {
@@ -112,6 +125,53 @@ export function App() {
     setIsUpdateModalOpen(false);
     // Background cloud sync
     syncTaskToCloud(updatedTask).catch(() => {});
+
+    // Auto-sync category if newly added
+    if (
+      updatedTask.module &&
+      !categories.some((c) => c.name.toLowerCase() === updatedTask.module.toLowerCase())
+    ) {
+      const newCat: ModuleCategory = {
+        id: `cat-${Date.now()}`,
+        name: updatedTask.module,
+        color: '#0073ea',
+        badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+        badgeText: 'text-blue-800',
+        borderClass: 'border-l-blue-500',
+      };
+      const newCats = [...categories, newCat];
+      setCategories(newCats);
+      saveCategoriesToStorage(newCats);
+      syncCategoriesToCloud(newCats).catch(() => {});
+    }
+  };
+
+  const handleDeleteTask = (taskId: string) => {
+    const newTasks = tasks.filter((t) => t.id !== taskId);
+    setTasks(newTasks);
+    saveTasksToStorage(newTasks);
+    deleteTaskFromCloud(taskId).catch(() => {});
+    setIsUpdateModalOpen(false);
+    setActiveTaskToUpdate(null);
+  };
+
+  const handleAddCategory = (name: string) => {
+    const clean = name.trim();
+    if (!clean) return;
+    if (categories.some((c) => c.name.toLowerCase() === clean.toLowerCase())) return;
+
+    const newCat: ModuleCategory = {
+      id: `cat-${Date.now()}`,
+      name: clean,
+      color: '#0073ea',
+      badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+      badgeText: 'text-blue-800',
+      borderClass: 'border-l-blue-500',
+    };
+    const newCats = [...categories, newCat];
+    setCategories(newCats);
+    saveCategoriesToStorage(newCats);
+    syncCategoriesToCloud(newCats).catch(() => {});
   };
 
   const handleQuickStatusChange = (taskId: string, newStatus: TaskStatus) => {
@@ -232,8 +292,9 @@ export function App() {
     });
   }, [tasks, searchQuery, selectedModule, selectedAssignee, selectedStatus]);
 
-  const handleOpenUpdate = (task: Task) => {
+  const handleOpenUpdate = (task: Task, initialTab: 'log' | 'edit' = 'log') => {
     setActiveTaskToUpdate(task);
+    setInitialUpdateTab(initialTab);
     setIsUpdateModalOpen(true);
   };
 
@@ -257,6 +318,7 @@ export function App() {
         urgentCount={urgentCount}
         userSession={authSession}
         onLogout={handleLogout}
+        onAddCategory={handleAddCategory}
       />
 
       {/* Main Content Viewport */}
@@ -393,7 +455,7 @@ export function App() {
         </footer>
       </div>
 
-      {/* Quick Update Modal with Attachments */}
+      {/* Quick Update Modal with Attachments & Full Edit */}
       <QuickUpdateModal
         task={activeTaskToUpdate}
         isOpen={isUpdateModalOpen}
@@ -402,7 +464,10 @@ export function App() {
           setActiveTaskToUpdate(null);
         }}
         onSaveUpdate={handleUpdateTask}
+        onDeleteTask={handleDeleteTask}
         availableUsers={availableAssignees}
+        modules={categories}
+        initialTab={initialUpdateTab}
       />
 
       {/* Create Task Modal */}

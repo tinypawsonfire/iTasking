@@ -16,12 +16,14 @@ import {
   Layers,
   Flag,
   ListTodo,
+  Edit3,
+  Settings2,
 } from 'lucide-react';
 
 interface CalendarScheduleViewProps {
   tasks: Task[];
   modules: ModuleCategory[];
-  onOpenUpdate: (task: Task) => void;
+  onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onOpenNewTask?: () => void;
 }
 
@@ -443,15 +445,25 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                 >
                   {/* Title & Module */}
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-100/70 text-[#0073ea]">
-                      {task.module}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onOpenUpdate(task, 'edit')}
+                      className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-100/70 text-[#0073ea] hover:bg-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                      title="คลิกเพื่อแก้ไขหมวดหมู่ / ข้อมูลงาน"
+                    >
+                      <span>{task.module}</span>
+                      <Edit3 className="w-2.5 h-2.5" />
+                    </button>
                     <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${statusStyle.light}`}>
                       {getStatusLabel(task.status)}
                     </span>
                   </div>
 
-                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#0073ea] transition-colors line-clamp-2 mb-1.5">
+                  <h4
+                    onClick={() => onOpenUpdate(task, 'edit')}
+                    className="text-sm font-bold text-slate-900 hover:text-[#0073ea] transition-colors line-clamp-2 mb-1.5 cursor-pointer"
+                    title="คลิกเพื่อแก้ไขข้อมูลงาน"
+                  >
                     {task.title}
                   </h4>
 
@@ -499,14 +511,27 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Update button */}
-                  <button
-                    onClick={() => onOpenUpdate(task)}
-                    className="w-full mt-3 py-2 px-3 bg-white hover:bg-[#0073ea] text-slate-700 hover:text-white border border-slate-200 hover:border-[#0073ea] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-                  >
-                    <span>ดูรายละเอียด & อัปเดตงาน</span>
-                    <ArrowUpRight className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Action buttons: Log & Edit */}
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => onOpenUpdate(task, 'log')}
+                      className="py-2 px-2 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 hover:border-indigo-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                      title="บันทึก Log ความคืบหน้า"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>บันทึก Log</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onOpenUpdate(task, 'edit')}
+                      className="py-2 px-2 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white border border-slate-200 hover:border-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                      title="แก้ไขข้อมูลงานและหมวดหมู่"
+                    >
+                      <Settings2 className="w-3.5 h-3.5" />
+                      <span>แก้ไขข้อมูล</span>
+                    </button>
+                  </div>
                 </div>
               );
             })}
