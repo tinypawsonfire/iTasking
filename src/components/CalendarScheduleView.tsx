@@ -18,6 +18,7 @@ import {
   ListTodo,
   Edit3,
   Settings2,
+  Route,
 } from 'lucide-react';
 
 interface CalendarScheduleViewProps {
@@ -25,6 +26,7 @@ interface CalendarScheduleViewProps {
   modules: ModuleCategory[];
   onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onOpenNewTask?: () => void;
+  onOpenInfographic?: (task: Task) => void;
 }
 
 export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
@@ -32,6 +34,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
   modules,
   onOpenUpdate,
   onOpenNewTask,
+  onOpenInfographic,
 }) => {
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -511,25 +514,34 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     </div>
                   </div>
 
-                  {/* Action buttons: Log & Edit */}
-                  <div className="grid grid-cols-2 gap-2 mt-3">
+                  {/* Action buttons: Infographic, Log & Edit */}
+                  <div className="grid grid-cols-3 gap-1.5 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+                      className="py-2 px-1 bg-blue-50 hover:bg-[#0073ea] text-[#0073ea] hover:text-white border border-blue-200/90 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer group"
+                      title="ดูไทม์ไลน์ Infographic ขั้นตอน & ความคืบหน้า"
+                    >
+                      <Route className="w-3 h-3 text-[#0073ea] group-hover:text-white" />
+                      <span>ไทม์ไลน์</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => onOpenUpdate(task, 'log')}
-                      className="py-2 px-2 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 hover:border-indigo-600 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                      className="py-2 px-1 bg-white hover:bg-indigo-600 text-slate-700 hover:text-white border border-slate-200 hover:border-indigo-600 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                       title="บันทึก Log ความคืบหน้า"
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>บันทึก Log</span>
+                      <Edit3 className="w-3 h-3" />
+                      <span>Log</span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenUpdate(task, 'edit')}
-                      className="py-2 px-2 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white border border-slate-200 hover:border-slate-800 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                      className="py-2 px-1 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white border border-slate-200 hover:border-slate-800 rounded-xl text-[11px] font-bold transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                       title="แก้ไขข้อมูลงานและหมวดหมู่"
                     >
-                      <Settings2 className="w-3.5 h-3.5" />
-                      <span>แก้ไขข้อมูล</span>
+                      <Settings2 className="w-3 h-3" />
+                      <span>แก้ไข</span>
                     </button>
                   </div>
                 </div>

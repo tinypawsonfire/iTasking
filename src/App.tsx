@@ -20,6 +20,7 @@ import { DailyTimelineView } from './components/DailyTimelineView';
 import { CalendarScheduleView } from './components/CalendarScheduleView';
 import { ExecutiveDashboard } from './components/ExecutiveDashboard';
 import { QuickUpdateModal } from './components/QuickUpdateModal';
+import { TaskInfographicTimelineModal } from './components/TaskInfographicTimelineModal';
 import { CreateTaskModal } from './components/CreateTaskModal';
 import { AISummaryModal } from './components/AISummaryModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -64,9 +65,16 @@ export function App() {
   const [activeTaskToUpdate, setActiveTaskToUpdate] = useState<Task | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [initialUpdateTab, setInitialUpdateTab] = useState<'log' | 'edit'>('log');
+  const [infographicTask, setInfographicTask] = useState<Task | null>(null);
+  const [isInfographicOpen, setIsInfographicOpen] = useState(false);
   const [isNewTaskFormOpen, setIsNewTaskFormOpen] = useState(false);
   const [isAISummaryModalOpen, setIsAISummaryModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  const handleOpenInfographic = (task: Task) => {
+    setInfographicTask(task);
+    setIsInfographicOpen(true);
+  };
   const [customUsers, setCustomUsers] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('iTasking_custom_team');
@@ -399,6 +407,7 @@ export function App() {
                     onOpenUpdate={handleOpenUpdate}
                     onQuickStatusChange={handleQuickStatusChange}
                     onAddTask={handleAddTask}
+                    onOpenInfographic={handleOpenInfographic}
                   />
                 )}
 
@@ -409,6 +418,7 @@ export function App() {
                     modules={categories}
                     onOpenUpdate={handleOpenUpdate}
                     onOpenNewTask={() => setIsNewTaskFormOpen(true)}
+                    onOpenInfographic={handleOpenInfographic}
                   />
                 )}
 
@@ -430,6 +440,7 @@ export function App() {
                           task={task}
                           onOpenUpdate={handleOpenUpdate}
                           onQuickStatusChange={handleQuickStatusChange}
+                          onOpenInfographic={handleOpenInfographic}
                         />
                       ))}
                     </div>
@@ -480,6 +491,29 @@ export function App() {
         availableUsers={availableAssignees}
         modules={categories}
         initialTab={initialUpdateTab}
+        onOpenInfographic={handleOpenInfographic}
+      />
+
+      {/* Task Infographic Timeline & Journey Modal */}
+      <TaskInfographicTimelineModal
+        task={infographicTask}
+        isOpen={isInfographicOpen}
+        onClose={() => {
+          setIsInfographicOpen(false);
+          setInfographicTask(null);
+        }}
+        onOpenUpdateModal={(t, tab) => {
+          setIsInfographicOpen(false);
+          setActiveTaskToUpdate(t);
+          setInitialUpdateTab(tab || 'log');
+          setIsUpdateModalOpen(true);
+        }}
+        onSaveUpdate={(updatedTask) => {
+          handleUpdateTask(updatedTask);
+          setInfographicTask(updatedTask);
+        }}
+        modules={categories}
+        availableUsers={availableAssignees}
       />
 
       {/* Create Task Modal */}

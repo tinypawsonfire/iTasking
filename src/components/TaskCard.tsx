@@ -14,18 +14,21 @@ import {
   TrendingUp,
   Edit3,
   Settings2,
+  Route,
 } from 'lucide-react';
 
 interface TaskCardProps {
   task: Task;
   onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onQuickStatusChange: (taskId: string, newStatus: TaskStatus) => void;
+  onOpenInfographic?: (task: Task) => void;
 }
 
 export const TaskCard: React.FC<TaskCardProps> = ({
   task,
   onOpenUpdate,
   onQuickStatusChange,
+  onOpenInfographic,
 }) => {
   const alertInfo = getDeadlineAlertInfo(task.deadlineDate, task.status);
   const latestLog = task.logs && task.logs.length > 0 ? task.logs[0] : null;
@@ -139,12 +142,21 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
-      {/* Action Buttons: Log & Edit */}
-      <div className="grid grid-cols-2 gap-2 w-full pt-1">
+      {/* Action Buttons: Infographic, Log & Edit */}
+      <div className="grid grid-cols-3 gap-1.5 w-full pt-1">
+        <button
+          type="button"
+          onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+          className="py-2 px-1 bg-blue-50/90 hover:bg-[#0073ea] text-[#0073ea] hover:text-white font-bold text-[11px] rounded-xl border border-blue-200/90 transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer group"
+          title="ดูไทม์ไลน์ Infographic ขั้นตอน & อัปเดต"
+        >
+          <Route className="w-3.5 h-3.5 text-[#0073ea] group-hover:text-white" />
+          <span>ไทม์ไลน์</span>
+        </button>
         <button
           type="button"
           onClick={() => onOpenUpdate(task, 'log')}
-          className="py-2 px-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-xs rounded-xl border border-indigo-100 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          className="py-2 px-1 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white font-bold text-[11px] rounded-xl border border-indigo-100 transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
           title="บันทึกความคืบหน้า / อัปเดตสถานะ"
         >
           <Edit3 className="w-3.5 h-3.5" />
@@ -153,11 +165,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         <button
           type="button"
           onClick={() => onOpenUpdate(task, 'edit')}
-          className="py-2 px-2 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white font-bold text-xs rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer"
+          className="py-2 px-1 bg-slate-100 hover:bg-slate-800 text-slate-700 hover:text-white font-bold text-[11px] rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
           title="แก้ไขชื่องาน, หมวดหมู่, ผู้ดูแล, วันส่ง"
         >
           <Settings2 className="w-3.5 h-3.5" />
-          <span>แก้ไขข้อมูล</span>
+          <span>แก้ไข</span>
         </button>
       </div>
     </div>

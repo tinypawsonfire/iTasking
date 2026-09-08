@@ -23,6 +23,7 @@ import {
   AlertTriangle,
   Check,
   Save,
+  Route,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -35,6 +36,7 @@ interface QuickUpdateModalProps {
   availableUsers: string[];
   modules?: ModuleCategory[];
   initialTab?: 'log' | 'edit';
+  onOpenInfographic?: (task: Task) => void;
 }
 
 export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
@@ -46,6 +48,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   availableUsers,
   modules = [],
   initialTab = 'log',
+  onOpenInfographic,
 }) => {
   if (!isOpen || !task) return null;
 
@@ -322,33 +325,50 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
           </button>
         </div>
 
-        {/* Dual Mode Tab Selector */}
-        <div className="px-5 pt-3 border-b border-slate-100 bg-slate-50/50 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('log')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'log'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <TrendingUp className="w-3.5 h-3.5" />
-            <span>1. บันทึก Log & ความคืบหน้า</span>
-          </button>
+        {/* Dual Mode Tab Selector + Infographic Button */}
+        <div className="px-5 pt-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setActiveTab('log')}
+              className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'log'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <TrendingUp className="w-3.5 h-3.5" />
+              <span>1. บันทึก Log & ความคืบหน้า</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('edit')}
-            className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeTab === 'edit'
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Settings2 className="w-3.5 h-3.5" />
-            <span>2. แก้ไขข้อมูลงาน & หมวดหมู่</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('edit')}
+              className={`pb-3 px-3 text-xs font-bold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
+                activeTab === 'edit'
+                  ? 'border-indigo-600 text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              <span>2. แก้ไขข้อมูลงาน & หมวดหมู่</span>
+            </button>
+          </div>
+
+          {onOpenInfographic && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenInfographic(task);
+              }}
+              className="mb-2 px-3 py-1.5 text-xs font-bold text-[#0073ea] hover:text-white bg-blue-50 hover:bg-[#0073ea] rounded-xl border border-blue-200/90 flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs group"
+              title="เปิดดูไทม์ไลน์ Infographic ขั้นตอนและความคืบหน้า"
+            >
+              <Route className="w-3.5 h-3.5 text-[#0073ea] group-hover:text-white" />
+              <span>📊 ดูไทม์ไลน์ Infographic</span>
+            </button>
+          )}
         </div>
 
         {/* TAB 1: Log & Progress Update */}

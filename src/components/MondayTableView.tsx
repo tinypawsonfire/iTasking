@@ -20,6 +20,8 @@ import {
   Sparkles,
   Paperclip,
   ExternalLink,
+  Milestone,
+  Route,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -29,6 +31,7 @@ interface MondayTableViewProps {
   onOpenUpdate: (task: Task, initialTab?: 'log' | 'edit') => void;
   onQuickStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onAddTask: (newTask: Task) => void;
+  onOpenInfographic?: (task: Task) => void;
 }
 
 export const MONDAY_STATUSES: {
@@ -94,6 +97,7 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
   onOpenUpdate,
   onQuickStatusChange,
   onAddTask,
+  onOpenInfographic,
 }) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [inlineNewTaskName, setInlineNewTaskName] = useState<Record<string, string>>({});
@@ -291,6 +295,17 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                                   </span>
                                 )}
 
+                                {/* Infographic Timeline Button */}
+                                <button
+                                  type="button"
+                                  onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+                                  className="px-2 py-1 rounded-xl bg-blue-50/90 hover:bg-[#0073ea] text-[#0073ea] hover:text-white border border-blue-200/90 hover:border-[#0073ea] text-[11px] font-bold flex items-center gap-1 transition-all shadow-2xs cursor-pointer group/infobtn"
+                                  title="คลิกดูไทม์ไลน์ Infographic ขั้นตอน & อัปเดต"
+                                >
+                                  <Route className="w-3.5 h-3.5 text-[#0073ea] group-hover/infobtn:text-white" />
+                                  <span className="hidden sm:inline">Infographic</span>
+                                </button>
+
                                 {/* Monday Chat Bubble Icon */}
                                 <button
                                   onClick={() => onOpenUpdate(task, 'log')}
@@ -372,21 +387,23 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                           {/* Capsule Timeline Bar */}
                           <td className="py-3 px-3 text-center">
                             <div
-                              onClick={() => onOpenUpdate(task)}
-                              className="w-full py-1.5 px-3 rounded-full bg-slate-100 hover:bg-slate-200/80 border border-slate-200 text-[11px] font-semibold text-slate-700 flex items-center justify-between cursor-pointer transition-all shadow-2xs"
-                              title={`เริ่ม ${formatThaiDate(task.startDate)} ➔ ส่ง ${task.deadlineText || formatThaiDate(task.deadlineDate)}`}
+                              onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+                              className="w-full py-1.5 px-3 rounded-full bg-slate-100 hover:bg-blue-50/90 border border-slate-200 hover:border-blue-400 text-[11px] font-semibold text-slate-700 flex items-center justify-between cursor-pointer transition-all shadow-2xs group/timeline"
+                              title={`คลิกเพื่อดูไทม์ไลน์ Infographic: เริ่ม ${formatThaiDate(task.startDate)} ➔ ส่ง ${task.deadlineText || formatThaiDate(task.deadlineDate)}`}
                             >
                               <span className="text-[10px] text-slate-400 font-mono">
                                 {task.startDate ? task.startDate.slice(5) : ''}
                               </span>
-                              <span className="font-bold text-slate-800 truncate px-1">
+                              <span className="font-bold text-slate-800 truncate px-1 group-hover/timeline:text-[#0073ea]">
                                 {task.deadlineText || formatThaiDate(task.deadlineDate)}
                               </span>
-                              {alertInfo.urgency === 'overdue' ? (
-                                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="เกินกำหนด!"></span>
-                              ) : (
-                                <Calendar className="w-3 h-3 text-slate-400" />
-                              )}
+                              <div className="flex items-center gap-1">
+                                {alertInfo.urgency === 'overdue' ? (
+                                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="เกินกำหนด!"></span>
+                                ) : (
+                                  <Milestone className="w-3.5 h-3.5 text-slate-400 group-hover/timeline:text-[#0073ea]" />
+                                )}
+                              </div>
                             </div>
                           </td>
 
