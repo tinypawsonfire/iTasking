@@ -201,3 +201,33 @@ export function generateTimelineHeader(): { months: TimelineMonth[]; totalWeeks:
 
   return { months, totalWeeks };
 }
+
+export function toLocalDateString(dateOrIso: string | Date | undefined): string {
+  if (!dateOrIso) return '';
+  if (typeof dateOrIso === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateOrIso)) {
+    return dateOrIso;
+  }
+  try {
+    const d = typeof dateOrIso === 'string' ? new Date(dateOrIso) : dateOrIso;
+    if (isNaN(d.getTime())) return '';
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } catch {
+    return '';
+  }
+}
+
+export function formatThaiTime(isoStr: string | undefined): string {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return '';
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  } catch {
+    return '';
+  }
+}

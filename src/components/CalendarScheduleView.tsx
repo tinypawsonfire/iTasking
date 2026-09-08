@@ -1,6 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import type { Task, ModuleCategory, TaskStatus } from '../types';
-import { THAI_MONTHS_FULL, formatThaiDate, getDeadlineAlertInfo } from '../utils/dateUtils';
+import type { Task, ModuleCategory, TaskStatus, ActivityLog } from '../types';
+import {
+  THAI_MONTHS_FULL,
+  formatThaiDate,
+  getDeadlineAlertInfo,
+  toLocalDateString,
+  formatThaiTime,
+} from '../utils/dateUtils';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -19,7 +25,20 @@ import {
   Edit3,
   Settings2,
   Route,
+  Pin,
+  Bell,
 } from 'lucide-react';
+
+export interface CalendarDayItem {
+  id: string;
+  type: 'update_log' | 'deadline' | 'start';
+  task: Task;
+  title: string;
+  badgeLabel: string;
+  dateStr: string;
+  timeStr?: string;
+  log?: ActivityLog;
+}
 
 interface CalendarScheduleViewProps {
   tasks: Task[];
@@ -39,7 +58,6 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
   const today = new Date();
   const [currentDate, setCurrentDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDateStr, setSelectedDateStr] = useState<string>(() => {
-    // Default to today in YYYY-MM-DD or today's ISO
     const y = today.getFullYear();
     const m = String(today.getMonth() + 1).padStart(2, '0');
     const d = String(today.getDate()).padStart(2, '0');
@@ -53,23 +71,6 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
   // Year and Month
   const currentYear = currentDate.getFullYear();
   const currentMonth = currentDate.getMonth();
-
-  const handlePrevMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setCurrentDate(new Date(currentYear, currentMonth + 1, 1));
-  };
-
-  const handleGoToday = () => {
-    const now = new Date();
-    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const d = String(now.getDate()).padStart(2, '0');
-    setSelectedDateStr(`${y}-${m}-${d}`);
-  };
 
   // Filter tasks
   const filteredTasks = useMemo(() => {
@@ -85,11 +86,147 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
         const matchTitle = t.title.toLowerCase().includes(q);
         const matchDetail = t.detail?.toLowerCase().includes(q);
         const matchAssignee = t.assignees.some((a) => a.toLowerCase().includes(q));
-        if (!matchTitle && !matchDetail && !matchAssignee) return false;
+        const matchLog = t.logs?.some((l) => l.content.toLowerCase().includes(q));
+        if (!matchTitle && !matchDetail && !matchAssignee && !matchLog) return false;
       }
       return true;
     });
   }, [tasks, filterModule, filterStatus, searchQuery]);
+
+  // Map all schedule events (Deadlines, Start dates, Timeline updates & milestones) to dates
+  const calendarItemsByDate = useMemo(() => {
+    const map = new Map<string, CalendarDayItem[]>();
+
+    const addItem = (dateStr: string, item: CalendarDayItem) => {
+      if (!dateStr) return;
+      const existing = map.get(dateStr) || [];
+      existing.push(item);
+      map.set(dateStr, existing);
+    };
+
+    filteredTasks.forEach((task) => {
+      // 1. Task Deadline (กำหนดส่ง)
+      if (task.deadlineDate) {
+        const dStr = toLocalDateString(task.deadlineDate);
+        if (dStr) {
+          addItem(dStr, {
+            id: `deadline-${task.id}`,
+            type: 'deadline',
+            task,
+            title: task.title,
+            badgeLabel: '🚩 กำหนดส่งงาน',
+            dateStr: dStr,
+          });
+        }
+      }
+
+      // 2. Task Start Date (วันเริ่มงาน)
+      if (task.startDate) {
+        const sStr = toLocalDateString(task.startDate);
+        const dStr = toLocalDateString(task.deadlineDate);
+        if (sStr && sStr !== dStr) {
+          addItem(sStr, {
+            id: `start-${task.id}`,
+            type: 'start',
+            task,
+            title: `${task.title} (เริ่มงาน)`,
+            badgeLabel: '🚀 วันเริ่มต้นงาน',
+            dateStr: sStr,
+          });
+        }
+      }
+
+      // 3. Timeline Updates / Milestones (บันทึกอัปเดตงาน & กำหนดการตามวันที่ลงไว้)
+      if (task.logs && task.logs.length > 0) {
+        task.logs.forEach((log) => {
+          if (
+            log.actionType !== 'created' &&
+            !log.content?.includes('แก้ไขข้อมูล') &&
+            !log.content?.includes('ปรับปรุงข้อมูลงาน') &&
+            log.content &&
+            log.content.trim().length > 0
+          ) {
+            const logDateStr = toLocalDateString(log.timestamp);
+            if (logDateStr) {
+              addItem(logDateStr, {
+                id: `log-${log.id}`,
+                type: 'update_log',
+                task,
+                title: log.content,
+                badgeLabel: '📌 บันทึก / กำหนดการ',
+                dateStr: logDateStr,
+                timeStr: formatThaiTime(log.timestamp),
+                log,
+              });
+            }
+          }
+        });
+      }
+    });
+
+    return map;
+  }, [filteredTasks]);
+
+  // Selected date items
+  const selectedDateItems = useMemo(() => {
+    return calendarItemsByDate.get(selectedDateStr) || [];
+  }, [calendarItemsByDate, selectedDateStr]);
+
+  // Items for the current viewed month (for highlights ribbon)
+  const currentMonthItems = useMemo(() => {
+    const list: CalendarDayItem[] = [];
+    const prefix = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+    calendarItemsByDate.forEach((items, dateStr) => {
+      if (dateStr.startsWith(prefix)) {
+        list.push(...items);
+      }
+    });
+    list.sort((a, b) => {
+      const cmp = a.dateStr.localeCompare(b.dateStr);
+      if (cmp !== 0) return cmp;
+      return (a.timeStr || '').localeCompare(b.timeStr || '');
+    });
+    return list;
+  }, [calendarItemsByDate, currentYear, currentMonth]);
+
+  const autoSelectDayForMonth = (y: number, m: number) => {
+    const now = new Date();
+    if (now.getFullYear() === y && now.getMonth() === m) {
+      setSelectedDateStr(toLocalDateString(now));
+      return;
+    }
+    const prefix = `${y}-${String(m + 1).padStart(2, '0')}`;
+    const datesWithEvents: string[] = [];
+    calendarItemsByDate.forEach((items, dStr) => {
+      if (dStr.startsWith(prefix) && items.length > 0) {
+        datesWithEvents.push(dStr);
+      }
+    });
+    if (datesWithEvents.length > 0) {
+      datesWithEvents.sort();
+      setSelectedDateStr(datesWithEvents[0]);
+    } else {
+      setSelectedDateStr(`${prefix}-01`);
+    }
+  };
+
+  const handlePrevMonth = () => {
+    const prevMonthDate = new Date(currentYear, currentMonth - 1, 1);
+    setCurrentDate(prevMonthDate);
+    autoSelectDayForMonth(prevMonthDate.getFullYear(), prevMonthDate.getMonth());
+  };
+
+  const handleNextMonth = () => {
+    const nextMonthDate = new Date(currentYear, currentMonth + 1, 1);
+    setCurrentDate(nextMonthDate);
+    autoSelectDayForMonth(nextMonthDate.getFullYear(), nextMonthDate.getMonth());
+  };
+
+  const handleGoToday = () => {
+    const now = new Date();
+    setCurrentDate(new Date(now.getFullYear(), now.getMonth(), 1));
+    setSelectedDateStr(toLocalDateString(now));
+  };
 
   // Generate calendar days for currentMonth
   const calendarDays = useMemo(() => {
@@ -104,7 +241,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
       isToday: boolean;
     }> = [];
 
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const todayStr = toLocalDateString(today);
 
     // Days from prev month
     for (let i = firstDayIndex - 1; i >= 0; i--) {
@@ -146,30 +283,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
     }
 
     return days;
-  }, [currentYear, currentMonth]);
-
-  // Map tasks to dates: Show task on its deadline date (due date)
-  const tasksByDate = useMemo(() => {
-    const map = new Map<string, Task[]>();
-
-    filteredTasks.forEach((task) => {
-      // Map task strictly to its deadlineDate (or startDate if no deadline)
-      const targetDate = task.deadlineDate || task.startDate;
-      if (targetDate) {
-        const dStr = targetDate.slice(0, 10);
-        const existing = map.get(dStr) || [];
-        existing.push(task);
-        map.set(dStr, existing);
-      }
-    });
-
-    return map;
-  }, [filteredTasks]);
-
-  // Tasks on selected date
-  const selectedDateTasks = useMemo(() => {
-    return tasksByDate.get(selectedDateStr) || [];
-  }, [tasksByDate, selectedDateStr]);
+  }, [currentYear, currentMonth, today]);
 
   const getStatusColor = (status: TaskStatus) => {
     switch (status) {
@@ -299,6 +413,65 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
         </div>
       </div>
 
+      {/* Current Month Schedule & Highlights Ribbon */}
+      {currentMonthItems.length > 0 && (
+        <div className="bg-gradient-to-r from-blue-50/90 via-indigo-50/80 to-purple-50/90 border border-blue-200/80 rounded-2xl p-3.5 shadow-2xs">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-[#0073ea] text-white flex items-center justify-center shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <span className="font-extrabold text-xs text-slate-800">
+                กำหนดการ & บันทึกสำคัญประจำเดือน {THAI_MONTHS_FULL[currentMonth]} {currentYear + 543}
+              </span>
+              <span className="px-2 py-0.2 rounded-full bg-blue-100 text-[#0073ea] text-[10px] font-black">
+                {currentMonthItems.length} รายการ
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-400 hidden sm:inline">
+              คลิกเพื่อเลือกดูรายละเอียดของวันนั้น
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {currentMonthItems.map((item) => {
+              const isSelected = selectedDateStr === item.dateStr;
+              const isUpdateLog = item.type === 'update_log';
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setSelectedDateStr(item.dateStr)}
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border flex items-center gap-2 cursor-pointer ${
+                    isSelected
+                      ? 'bg-[#0073ea] text-white border-[#0073ea] shadow-xs'
+                      : isUpdateLog
+                      ? 'bg-amber-50/90 text-amber-900 border-amber-300 hover:bg-amber-100'
+                      : 'bg-white text-slate-700 hover:text-[#0073ea] border-slate-200 hover:border-[#0073ea]'
+                  }`}
+                  title={`${item.title} (${formatThaiDate(item.dateStr)})`}
+                >
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded-md font-extrabold ${
+                      isSelected
+                        ? 'bg-white/20 text-white'
+                        : isUpdateLog
+                        ? 'bg-amber-200 text-amber-900'
+                        : 'bg-blue-100 text-[#0073ea]'
+                    }`}
+                  >
+                    {formatThaiDate(item.dateStr).slice(0, -5)}
+                  </span>
+                  <span className="truncate max-w-[220px]">
+                    {isUpdateLog ? `📌 ${item.title}` : item.title}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Calendar on Left (7 cols) + Selected Day Inspector on Right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Calendar Grid (8 cols on large screens) */}
@@ -320,8 +493,9 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
           {/* Day Cells */}
           <div className="grid grid-cols-7 gap-1.5">
             {calendarDays.map((day) => {
-              const dayTasks = tasksByDate.get(day.dateStr) || [];
+              const dayItems = calendarItemsByDate.get(day.dateStr) || [];
               const isSelected = selectedDateStr === day.dateStr;
+              const hasUpdateLog = dayItems.some((item) => item.type === 'update_log');
 
               return (
                 <div
@@ -351,36 +525,78 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                       {day.dayNumber}
                     </span>
 
-                    {dayTasks.length > 0 && (
-                      <span className="text-[10px] font-extrabold px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                        {dayTasks.length}
+                    {dayItems.length > 0 && (
+                      <span
+                        className={`text-[10px] font-extrabold px-1.5 py-0.2 rounded-full border ${
+                          hasUpdateLog
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 font-black shadow-2xs'
+                            : 'bg-slate-100 text-slate-700 border-slate-200'
+                        }`}
+                      >
+                        {dayItems.length}
                       </span>
                     )}
                   </div>
 
-                  {/* Task Pills inside cell */}
+                  {/* Task & Event Pills inside cell */}
                   <div className="space-y-1 flex-1 overflow-hidden">
-                    {dayTasks.slice(0, 3).map((task) => {
-                      const colors = getStatusColor(task.status);
+                    {dayItems.slice(0, 3).map((item) => {
+                      if (item.type === 'update_log') {
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDateStr(day.dateStr);
+                              onOpenUpdate(item.task, 'log');
+                            }}
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] bg-gradient-to-r from-amber-500 to-orange-500 text-white cursor-pointer"
+                            title={`📌 ${item.title} (${item.task.title})`}
+                          >
+                            <Pin className="w-2.5 h-2.5 shrink-0" />
+                            <span className="truncate">{item.title}</span>
+                          </div>
+                        );
+                      }
+
+                      if (item.type === 'start') {
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDateStr(day.dateStr);
+                              onOpenUpdate(item.task);
+                            }}
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] bg-sky-600 text-white cursor-pointer"
+                            title={`🚀 เริ่มงาน: ${item.task.title}`}
+                          >
+                            <span className="truncate">🚀 {item.task.title}</span>
+                          </div>
+                        );
+                      }
+
+                      const colors = getStatusColor(item.task.status);
                       return (
                         <div
-                          key={task.id}
+                          key={item.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            onOpenUpdate(task);
+                            setSelectedDateStr(day.dateStr);
+                            onOpenUpdate(item.task);
                           }}
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] ${colors.bg} ${colors.text}`}
-                          title={`${task.title} (${task.module})`}
+                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] ${colors.bg} ${colors.text} cursor-pointer`}
+                          title={`🚩 กำหนดส่ง: ${item.task.title} (${item.task.module})`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
-                          <span className="truncate">{task.title}</span>
+                          <span className="truncate">{item.task.title}</span>
                         </div>
                       );
                     })}
 
-                    {dayTasks.length > 3 && (
+                    {dayItems.length > 3 && (
                       <div className="text-[10px] font-bold text-slate-500 pl-1">
-                        +{dayTasks.length - 3} งานเพิ่มเติม...
+                        +{dayItems.length - 3} รายการ...
                       </div>
                     )}
                   </div>
@@ -395,30 +611,35 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
           {/* Header of Inspector */}
           <div className="pb-4 border-b border-slate-100">
             <div className="text-[11px] font-bold text-[#0073ea] uppercase tracking-wider mb-1 flex items-center gap-1">
-              <CalendarIcon className="w-3.5 h-3.5" /> รายละเอียดงานประจำวัน
+              <CalendarIcon className="w-3.5 h-3.5" /> รายละเอียดงาน & กำหนดการประจำวัน
             </div>
             <h3 className="text-lg font-black text-slate-900 leading-snug">
               {formatThaiDate(selectedDateStr)}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {selectedDateTasks.length > 0
-                ? `มีงานทั้งหมด ${selectedDateTasks.length} รายการในวันนี้`
-                : 'ไม่มีงานที่กำหนดส่งหรือดำเนินการในวันนี้'}
+              {selectedDateItems.length > 0
+                ? `มีกำหนดการทั้งหมด ${selectedDateItems.length} รายการในวันนี้`
+                : 'ไม่มีงานหรือกำหนดการที่บันทึกไว้ในวันนี้'}
             </p>
           </div>
 
-          {/* List of Tasks for Selected Date */}
-          <div className="space-y-3.5 max-h-[520px] overflow-y-auto pr-1">
-            {selectedDateTasks.map((task) => {
+          {/* List of Items for Selected Date */}
+          <div className="space-y-3.5 max-h-[560px] overflow-y-auto pr-1">
+            {selectedDateItems.map((item) => {
+              const task = item.task;
               const statusStyle = getStatusColor(task.status);
-              const urgencyInfo = getDeadlineAlertInfo(task.deadlineDate, task.status);
+              const isUpdateLog = item.type === 'update_log';
 
               return (
                 <div
-                  key={task.id}
-                  className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-[#0073ea]/50 hover:shadow-md transition-all group"
+                  key={item.id}
+                  className={`p-4 rounded-2xl border transition-all group ${
+                    isUpdateLog
+                      ? 'border-amber-300 bg-amber-50/60 hover:bg-amber-50/90 hover:shadow-md'
+                      : 'border-slate-200/80 bg-slate-50/50 hover:bg-white hover:border-[#0073ea]/50 hover:shadow-md'
+                  }`}
                 >
-                  {/* Title & Module */}
+                  {/* Badge & Type */}
                   <div className="flex items-start justify-between gap-2 mb-2">
                     <button
                       type="button"
@@ -429,29 +650,54 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                       <span>{task.module}</span>
                       <Edit3 className="w-2.5 h-2.5" />
                     </button>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${statusStyle.light}`}>
-                      {getStatusLabel(task.status)}
+
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        isUpdateLog
+                          ? 'bg-amber-200 text-amber-900 border border-amber-300'
+                          : statusStyle.light
+                      }`}
+                    >
+                      {item.badgeLabel}
                     </span>
                   </div>
 
-                  <h4
-                    onClick={() => onOpenUpdate(task, 'edit')}
-                    className="text-sm font-bold text-slate-900 hover:text-[#0073ea] transition-colors line-clamp-2 mb-1.5 cursor-pointer"
-                    title="คลิกเพื่อแก้ไขข้อมูลงาน"
-                  >
-                    {task.title}
-                  </h4>
+                  {/* If update log, highlight the logged activity */}
+                  {isUpdateLog ? (
+                    <div className="mb-3">
+                      <div className="text-sm font-extrabold text-slate-900 leading-snug mb-1">
+                        📌 {item.title}
+                      </div>
+                      <div className="text-xs text-slate-600 font-medium">
+                        ชื่องานหลัก: <span className="font-bold text-slate-800">{task.title}</span>
+                      </div>
+                      {item.timeStr && (
+                        <div className="text-[11px] text-amber-800 font-semibold mt-1">
+                          ⏰ เวลาบันทึก: {item.timeStr} น.
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Main Task Title for deadline or start */
+                    <h4
+                      onClick={() => onOpenUpdate(task, 'edit')}
+                      className="text-sm font-bold text-slate-900 hover:text-[#0073ea] transition-colors line-clamp-2 mb-1.5 cursor-pointer"
+                      title="คลิกเพื่อแก้ไขข้อมูลงาน"
+                    >
+                      {task.title}
+                    </h4>
+                  )}
 
-                  {/* Task Detail Description */}
-                  {task.detail && (
+                  {/* Task Detail Description (if any) */}
+                  {!isUpdateLog && task.detail && (
                     <p className="text-xs text-slate-600 bg-white p-2.5 rounded-xl border border-slate-100 mb-3 leading-relaxed">
                       {task.detail}
                     </p>
                   )}
 
-                  {/* Metadata Row: Assignees, Deadline */}
-                  <div className="space-y-2 text-[11px] text-slate-500">
-                    <div className="flex items-center justify-between pt-1">
+                  {/* Metadata Row: Assignees & Deadline */}
+                  <div className="space-y-1.5 text-[11px] text-slate-500 pt-1 border-t border-slate-200/50">
+                    <div className="flex items-center justify-between">
                       {/* Assignees */}
                       <div className="flex items-center gap-1">
                         <User className="w-3.5 h-3.5 text-slate-400" />
@@ -460,8 +706,15 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                         </span>
                       </div>
 
+                      {/* Log Author */}
+                      {isUpdateLog && item.log?.author && (
+                        <span className="text-[10px] text-slate-500">
+                          โดย: <strong className="text-slate-700">{item.log.author}</strong>
+                        </span>
+                      )}
+
                       {/* Deadline info */}
-                      {task.deadlineDate && (
+                      {!isUpdateLog && task.deadlineDate && (
                         <div className="flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span className="font-medium text-slate-600">
@@ -506,7 +759,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
               );
             })}
 
-            {selectedDateTasks.length === 0 && (
+            {selectedDateItems.length === 0 && (
               <div className="text-center py-10 px-4 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
                 <ListTodo className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <div className="text-xs font-bold text-slate-600 mb-1">ไม่มีงานในวันนี้</div>
