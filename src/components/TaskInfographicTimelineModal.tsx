@@ -213,66 +213,115 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
     window.print();
   };
 
-  // 4 Milestone Roadmap Stages with balanced state detection
-  const stages = useMemo(() => {
-    const isDone = task.status === 'completed' || task.progress === 100;
-    const isReview = task.status === 'review';
-    const isBlocked = task.status === 'blocked';
-    const isInProgress = task.status === 'in_progress';
-    const isTodo = task.status === 'todo';
+  interface RoadmapMilestone {
+    id: string;
+    dateDisplay: string;
+    rawDate: string;
+    title: string;
+    summary: string;
+    author?: string;
+    type: 'start' | 'log' | 'current' | 'deadline';
+    status: 'done' | 'active' | 'pending';
+    icon: 'start' | 'update' | 'status' | 'deadline';
+  }
 
-    // Step 1: เริ่มต้น (Initiation)
-    const step1Done = true;
-    const step1Active = isTodo;
+  // Chronological Left-to-Right Real-World Roadmap Milestones
+  const roadmapMilestones = useMemo<RoadmapMilestone[]>(() => {
+    const milestones: RoadmapMilestone[] = [];
 
-    // Step 2: ดำเนินการหลัก (Execution)
-    const step2Done = isDone || isReview || task.progress >= 90;
-    const step2Active = (isInProgress || isBlocked) && !isReview && !isDone;
+    // 1. Start Milestone (จุดเริ่มต้นซ้ายสุด)
+    const startRaw = task.startDate || task.createdAt;
+    milestones.push({
+      id: 'step-start',
+      dateDisplay: formatThaiDate(startRaw),
+      rawDate: startRaw,
+      title: 'เริ่มต้นภารกิจ',
+      summary: task.detail
+        ? (task.detail.length > 55 ? task.detail.slice(0, 55) + '...' : task.detail)
+        : `สร้างงานในหมวด ${task.module} และเริ่มวางแผนงาน`,
+      author: task.assignees[0] || 'ผู้มอบหมาย',
+      type: 'start',
+      status: 'done',
+      icon: 'start',
+    });
 
-    // Step 3: ตรวจสอบ & สรุปผล (Review & Verification)
-    const step3Done = isDone;
-    const step3Active = isReview;
+    // 2. Intermediate Milestones from task.logs (Sorted chronologically oldest -> newest)
+    const validLogs = (task.logs || [])
+      .filter((l) => l.actionType !== 'created')
+      .slice()
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-    // Step 4: เป้าหมายสำเร็จ (Delivery & Goal)
-    const step4Done = isDone;
+    let selectedLogs = validLogs;
+    if (validLogs.length > 4) {
+      const statusChanges = validLogs.filter((l) => l.actionType === 'status_change');
+      const otherLogs = validLogs.filter((l) => l.actionType !== 'status_change');
+      const merged = [
+        validLogs[0],
+        ...statusChanges.slice(-2),
+        ...otherLogs.slice(-2),
+        validLogs[validLogs.length - 1],
+      ];
+      const seen = new Set<string>();
+      selectedLogs = merged.filter((l) => {
+        if (seen.has(l.id)) return false;
+        seen.add(l.id);
+        return true;
+      }).sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }
 
-    return [
-      {
-        step: 1,
-        title: 'เริ่มต้นภารกิจ',
-        desc: 'ตั้งเป้าหมาย & เริ่มงาน',
-        badge: formatThaiDate(task.startDate),
-        status: step1Done && !step1Active ? 'done' : step1Active ? 'active' : 'pending',
-      },
-      {
-        step: 2,
-        title: 'ดำเนินการหลัก',
-        desc: isBlocked
-          ? 'ติดปัญหา / รอแก้ไข'
-          : 'อยู่ระหว่างดำเนินงานตามแผน',
-        badge: isBlocked
-          ? 'ติดปัญหา (Stuck)'
-          : step2Done
-          ? 'ขั้นตอนหลักเสร็จสิ้น'
-          : 'กำลังดำเนินการ',
-        status: isBlocked ? 'blocked' : step2Done ? 'done' : step2Active ? 'active' : 'pending',
-      },
-      {
-        step: 3,
-        title: 'ตรวจสอบ & สรุปผล',
-        desc: 'รอตรวจ / รอข้อตกลง',
-        badge: step3Active ? 'อยู่ระหว่างตรวจ' : step3Done ? 'ผ่านการตรวจแล้ว' : 'รอส่งตรวจ',
-        status: step3Done ? 'done' : step3Active ? 'active' : 'pending',
-      },
-      {
-        step: 4,
-        title: 'เป้าหมายสำเร็จ',
-        desc: task.deadlineText || formatThaiDate(task.deadlineDate),
-        badge: isDone ? 'เสร็จสมบูรณ์' : alertInfo.badgeText,
-        status: step4Done ? 'done' : 'pending',
-      },
-    ];
-  }, [task, alertInfo]);
+    selectedLogs.forEach((l, idx) => {
+      const isLatest = idx === selectedLogs.length - 1 && task.status !== 'completed';
+      const isStatusChange = l.actionType === 'status_change';
+
+      let cleanSummary = l.content || 'อัปเดตความคืบหน้าของงาน';
+      if (cleanSummary.length > 60) {
+        cleanSummary = cleanSummary.slice(0, 60) + '...';
+      }
+
+      milestones.push({
+        id: l.id,
+        dateDisplay: formatThaiDate(l.timestamp),
+        rawDate: l.timestamp,
+        title: isStatusChange ? 'ปรับเปลี่ยนสถานะ' : 'บันทึกความคืบหน้า',
+        summary: cleanSummary,
+        author: l.author,
+        type: 'log',
+        status: isLatest ? 'active' : 'done',
+        icon: isStatusChange ? 'status' : 'update',
+      });
+    });
+
+    // If there were NO intermediate logs and task is in progress, add a "Current stage" milestone
+    if (validLogs.length === 0 && task.status !== 'completed' && task.status !== 'todo') {
+      milestones.push({
+        id: 'step-current',
+        dateDisplay: 'ปัจจุบัน',
+        rawDate: new Date().toISOString(),
+        title: statusConfig.label,
+        summary: 'อยู่ระหว่างดำเนินการตามแผนงาน',
+        author: task.assignees[0],
+        type: 'current',
+        status: 'active',
+        icon: 'update',
+      });
+    }
+
+    // 3. Deadline Milestone (จุดสิ้นสุดขวาสุด)
+    const isCompleted = task.status === 'completed';
+    milestones.push({
+      id: 'step-deadline',
+      dateDisplay: task.deadlineText || formatThaiDate(task.deadlineDate),
+      rawDate: task.deadlineDate,
+      title: isCompleted ? 'เป้าหมายสำเร็จ' : 'กำหนดส่งมอบ (Deadline)',
+      summary: isCompleted ? 'ส่งมอบงานครบถ้วนสมบูรณ์' : alertInfo.badgeText,
+      author: task.assignees.join(', '),
+      type: 'deadline',
+      status: isCompleted ? 'done' : 'pending',
+      icon: 'deadline',
+    });
+
+    return milestones;
+  }, [task, statusConfig, alertInfo]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-950/60 backdrop-blur-md animate-fadeIn overflow-y-auto font-sans">
@@ -403,7 +452,7 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
                   </span>
                 </div>
                 <div className="text-xs font-black text-slate-800 truncate">
-                  {stages.find((s) => s.status === 'active')?.title || (task.status === 'completed' ? 'เป้าหมายสำเร็จ' : 'ดำเนินการหลัก')}
+                  {roadmapMilestones.find((s) => s.status === 'active')?.title || (task.status === 'completed' ? 'เป้าหมายสำเร็จ' : 'ดำเนินการหลัก')}
                 </div>
                 <div className="text-[11px] text-slate-400 truncate">
                   {task.status === 'completed' ? 'ส่งมอบงานครบถ้วน' : 'อยู่ระหว่างดำเนินการตามแผน'}
@@ -496,7 +545,7 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
             </div>
           </div>
 
-          {/* Infographic 4-Stage Roadmap Banner */}
+          {/* Infographic Work Progression Roadmap (Left-to-Right Timeline) */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-5">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
@@ -504,130 +553,133 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
                   <Route className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black text-slate-900 tracking-tight">
-                    แผนภูมิขั้นตอนการดำเนินงาน (WORK PROGRESSION ROADMAP)
+                  <h3 className="text-sm font-black text-slate-900 tracking-tight flex items-center gap-1.5 flex-wrap">
+                    <span>แผนภูมิขั้นตอนการดำเนินงาน</span>
+                    <span className="text-xs text-slate-400 font-bold uppercase tracking-wider font-mono">
+                      (WORK PROGRESSION ROADMAP)
+                    </span>
                   </h3>
                   <p className="text-[11px] text-slate-400 font-medium">
-                    ความคืบหน้า 4 ระยะหลักตั้งแต่เริ่มต้นจนถึงเป้าหมายสำเร็จ
+                    ไทม์ไลน์ลำดับขั้นตอนจากซ้ายไปขวา: วันที่ดำเนินการ ➔ สิ่งที่ทำสรุป ➔ กำหนดส่ง Deadline
                   </p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                4 ระยะหลัก
+              <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-[#0073ea] border border-blue-200">
+                {roadmapMilestones.length} เหตุการณ์ตามลำดับเวลา
               </span>
             </div>
 
-            {/* Connecting Stepper Rail View */}
+            {/* Horizontal Left-to-Right Stepper Track */}
             <div className="relative pt-2 pb-1">
-              {/* Background Connecting Line - positioned precisely at y=44px to pass behind the centers of the 40px circle nodes */}
-              <div className="hidden sm:block absolute top-[44px] left-[12%] right-[12%] h-1 bg-slate-200/80 rounded-full z-0">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-500 via-[#0073ea] to-indigo-600 rounded-full transition-all duration-500 shadow-xs"
-                  style={{
-                    width:
-                      task.status === 'completed'
-                        ? '100%'
-                        : task.status === 'review'
-                        ? '68%'
-                        : task.progress >= 50
-                        ? '45%'
-                        : task.progress > 0
-                        ? '22%'
-                        : '5%',
-                  }}
-                />
-              </div>
+              <div className="overflow-x-auto pb-3 pt-2 custom-scrollbar">
+                <div className="flex items-stretch gap-3 sm:gap-4 min-w-[720px]">
+                  {roadmapMilestones.map((m, idx) => {
+                    const isDone = m.status === 'done';
+                    const isActive = m.status === 'active';
+                    const isLast = idx === roadmapMilestones.length - 1;
 
-              {/* 4 Balanced Uniform Step Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 relative z-10">
-                {stages.map((st) => {
-                  const isDone = st.status === 'done';
-                  const isActive = st.status === 'active';
-                  const isBlocked = st.status === 'blocked';
+                    return (
+                      <div
+                        key={m.id}
+                        className="flex-1 min-w-[210px] sm:min-w-[230px] flex flex-col justify-between relative"
+                      >
+                        {/* Connecting Line to next card */}
+                        {!isLast && (
+                          <div className="hidden sm:block absolute top-[28px] left-[50%] right-[-50%] h-[2.5px] z-0">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isDone
+                                  ? 'bg-gradient-to-r from-emerald-500 to-[#0073ea]'
+                                  : isActive
+                                  ? 'bg-gradient-to-r from-[#0073ea] to-slate-200'
+                                  : 'bg-slate-200 border-t border-dashed border-slate-300'
+                              }`}
+                            />
+                          </div>
+                        )}
 
-                  return (
-                    <div
-                      key={st.step}
-                      className={`flex sm:flex-col items-center sm:text-center p-3.5 sm:p-4 rounded-2xl transition-all border h-full justify-between ${
-                        isActive
-                          ? 'bg-blue-50/70 border-2 border-blue-400/90 shadow-md shadow-blue-500/10'
-                          : isDone
-                          ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50'
-                          : isBlocked
-                          ? 'bg-rose-50/50 border-rose-300 shadow-xs'
-                          : 'bg-white border-slate-200/70'
-                      }`}
-                    >
-                      {/* Step Node Circle - 40x40px */}
-                      <div className="relative mb-0 sm:mb-3 shrink-0 mr-3.5 sm:mr-0">
+                        {/* Milestone Card */}
                         <div
-                          className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-xs transition-transform ${
-                            isDone
-                              ? 'bg-emerald-500 text-white shadow-emerald-500/30'
-                              : isActive
-                              ? 'bg-gradient-to-tr from-[#0073ea] to-blue-600 text-white ring-4 ring-blue-100 shadow-blue-500/30'
-                              : isBlocked
-                              ? 'bg-rose-500 text-white ring-4 ring-rose-100'
-                              : 'bg-slate-100 text-slate-400 border border-slate-200'
+                          className={`p-4 rounded-2xl border transition-all h-full flex flex-col justify-between relative z-10 ${
+                            isActive
+                              ? 'bg-blue-50/70 border-2 border-blue-400/90 shadow-md shadow-blue-500/10 ring-2 ring-blue-100'
+                              : isDone
+                              ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50'
+                              : 'bg-white border-slate-200/70'
                           }`}
                         >
-                          {isDone ? (
-                            <Check className="w-5 h-5 stroke-[2.5]" />
-                          ) : isBlocked ? (
-                            <AlertCircle className="w-5 h-5" />
-                          ) : (
-                            <span>{st.step}</span>
-                          )}
-                        </div>
+                          {/* Top: Icon + Date */}
+                          <div className="flex items-center gap-2.5 mb-2.5">
+                            <div
+                              className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs shadow-xs shrink-0 ${
+                                isDone
+                                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                                  : isActive
+                                  ? 'bg-gradient-to-tr from-[#0073ea] to-blue-600 text-white ring-4 ring-blue-100 shadow-blue-500/30'
+                                  : 'bg-slate-100 text-slate-400 border border-slate-200'
+                              }`}
+                            >
+                              {m.icon === 'start' && <Sparkles className="w-4 h-4" />}
+                              {m.icon === 'status' && <ArrowRight className="w-4 h-4 stroke-[2.5]" />}
+                              {m.icon === 'update' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <MessageSquare className="w-4 h-4" />)}
+                              {m.icon === 'deadline' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <Flag className="w-4 h-4 text-blue-600" />)}
+                            </div>
 
-                        {isActive && (
-                          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-                          </span>
-                        )}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-[10px] font-mono font-bold text-slate-400 uppercase flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span>
+                                  {m.type === 'start'
+                                    ? 'วันเริ่มงาน'
+                                    : m.type === 'deadline'
+                                    ? 'กำหนดส่ง'
+                                    : `ขั้นตอนที่ ${idx + 1}`}
+                                </span>
+                              </div>
+                              <div
+                                className={`text-xs font-black truncate ${
+                                  isActive ? 'text-[#0073ea]' : 'text-slate-800'
+                                }`}
+                              >
+                                {m.dateDisplay}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Body: Title & Summary */}
+                          <div className="space-y-1.5 flex-1 my-1">
+                            <div className="text-xs font-black text-slate-900 leading-snug">
+                              {m.title}
+                            </div>
+                            <div className="text-[11px] text-slate-600 leading-relaxed line-clamp-3 bg-white/80 p-2 rounded-xl border border-slate-100/90 shadow-2xs">
+                              "{m.summary}"
+                            </div>
+                          </div>
+
+                          {/* Footer: Author & Status pill */}
+                          <div className="pt-2.5 mt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] font-bold">
+                            <div className="flex items-center gap-1 text-slate-500 truncate max-w-[110px]">
+                              <User className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{m.author || 'ทีมงาน'}</span>
+                            </div>
+
+                            <span
+                              className={`px-2 py-0.5 rounded-md border ${
+                                isActive
+                                  ? 'bg-blue-100/90 text-blue-700 border-blue-200 font-extrabold'
+                                  : isDone
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                              }`}
+                            >
+                              {isActive ? '📍 ล่าสุด' : isDone ? '✓ ดำเนินการแล้ว' : 'รอส่งมอบ'}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-
-                      {/* Step Text Information */}
-                      <div className="space-y-1 text-left sm:text-center min-w-0 flex-1 w-full flex flex-col justify-between">
-                        <div>
-                          <div className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider">
-                            ระยะที่ {st.step}
-                          </div>
-
-                          <div
-                            className={`text-xs sm:text-sm font-black truncate ${
-                              isActive ? 'text-[#0073ea]' : isDone ? 'text-slate-900' : 'text-slate-700'
-                            }`}
-                          >
-                            {st.title}
-                          </div>
-
-                          <div className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
-                            {st.desc}
-                          </div>
-                        </div>
-
-                        {/* Status Tag Pill */}
-                        <div className="pt-2 flex sm:justify-center">
-                          <span
-                            className={`inline-block px-2.5 py-1 rounded-lg text-[10px] font-bold truncate max-w-full border ${
-                              isActive
-                                ? 'bg-blue-100/90 text-blue-700 border-blue-200 font-extrabold'
-                                : isDone
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                : isBlocked
-                                ? 'bg-rose-100 text-rose-700 border-rose-200'
-                                : 'bg-slate-100 text-slate-500 border-slate-200'
-                            }`}
-                          >
-                            {st.badge}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
