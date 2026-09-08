@@ -86,7 +86,13 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
 
   // Chronological event journey
   const activityTrail = useMemo(() => {
-    const list: ActivityLog[] = task.logs ? [...task.logs] : [];
+    const list: ActivityLog[] = task.logs
+      ? task.logs.filter(
+          (l) =>
+            !l.content?.includes('แก้ไขข้อมูล') &&
+            !l.content?.includes('ปรับปรุงข้อมูลงาน')
+        )
+      : [];
     list.sort((a, b) => {
       const tA = new Date(a.timestamp).getTime() || 0;
       const tB = new Date(b.timestamp).getTime() || 0;
@@ -247,7 +253,12 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
 
     // 2. Intermediate Milestones from task.logs (Sorted chronologically oldest -> newest)
     const validLogs = (task.logs || [])
-      .filter((l) => l.actionType !== 'created')
+      .filter(
+        (l) =>
+          l.actionType !== 'created' &&
+          !l.content?.includes('แก้ไขข้อมูล') &&
+          !l.content?.includes('ปรับปรุงข้อมูลงาน')
+      )
       .slice()
       .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 

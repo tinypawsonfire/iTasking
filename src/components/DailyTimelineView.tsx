@@ -58,7 +58,9 @@ export const DailyTimelineView: React.FC<DailyTimelineViewProps> = ({
     tasks.forEach((t) => {
       if (t.logs && t.logs.length > 0) {
         t.logs.forEach((l) => {
-          rawList.push({ log: l, task: t });
+          if (!l.content?.includes('แก้ไขข้อมูล') && !l.content?.includes('ปรับปรุงข้อมูลงาน')) {
+            rawList.push({ log: l, task: t });
+          }
         });
       }
     });

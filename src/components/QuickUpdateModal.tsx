@@ -247,31 +247,6 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       finalAssignees = ['ยังไม่ระบุ'];
     }
 
-    // Build changes summary for audit log
-    const changes: string[] = [];
-    if (editTitle.trim() !== task.title) changes.push(`ชื่อ: "${editTitle.trim()}"`);
-    if (finalModule !== task.module) changes.push(`หมวดหมู่: "${finalModule}"`);
-    if (JSON.stringify(finalAssignees) !== JSON.stringify(task.assignees)) {
-      changes.push(`ผู้ดูแล: ${finalAssignees.join(', ')}`);
-    }
-    if (editDeadlineDate !== task.deadlineDate) {
-      changes.push(`กำหนดส่ง: ${editDeadlineDate || 'ไม่ระบุ'}`);
-    }
-
-    const changeSummary = changes.length > 0 ? changes.join(' | ') : 'ปรับปรุงข้อมูลงาน';
-
-    const editLog: ActivityLog = {
-      id: `log-${Date.now()}`,
-      taskId: task.id,
-      author: finalAuthor || finalAssignees[0] || 'ผู้ดูแล',
-      timestamp: new Date().toISOString(),
-      actionType: 'note',
-      content: `⚙️ แก้ไขข้อมูล: ${changeSummary}`,
-      previousStatus: task.status,
-      newStatus: task.status,
-      progressPercent: task.progress,
-    };
-
     const updatedTask: Task = {
       ...task,
       title: editTitle.trim(),
@@ -281,7 +256,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       deadlineDate: editDeadlineDate,
       priority: editPriority,
       detail: editDetail.trim(),
-      logs: [editLog, ...(task.logs || [])],
+      logs: task.logs || [],
       updatedAt: new Date().toISOString(),
     };
 
