@@ -26,7 +26,8 @@ export const QuickAddBar: React.FC<QuickAddBarProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const finalAssignee = assignee.trim() || 'ยังไม่ระบุ';
+    const rawAssignees = assignee.trim() ? assignee.split(/[,/]+/).map((s) => s.trim()).filter(Boolean) : [];
+    const finalAssignees = rawAssignees.length > 0 ? rawAssignees : ['ยังไม่ระบุ'];
     const finalStartDate = startDate || new Date().toISOString().slice(0, 10);
     const finalDeadlineDate = deadlineDate || finalStartDate;
 
@@ -36,7 +37,7 @@ export const QuickAddBar: React.FC<QuickAddBarProps> = ({
       module: module.trim() || 'งานทั่วไป',
       title: title.trim(),
       detail: detail.trim(),
-      assignees: [finalAssignee],
+      assignees: finalAssignees,
       status: 'in_progress' as TaskStatus,
       priority: 'medium',
       progress: 0,
@@ -48,10 +49,10 @@ export const QuickAddBar: React.FC<QuickAddBarProps> = ({
         {
           id: `log-${Date.now()}`,
           taskId: `task-${Date.now()}`,
-          author: finalAssignee,
+          author: finalAssignees[0] || 'ผู้ดูแล',
           timestamp: new Date().toISOString(),
           actionType: 'created',
-          content: `สร้างงาน "${title.trim()}" ผู้ดูแล: ${finalAssignee}`,
+          content: `สร้างงาน "${title.trim()}" ผู้ดูแล: ${finalAssignees.join(', ')}`,
         },
       ],
       createdAt: new Date().toISOString(),
