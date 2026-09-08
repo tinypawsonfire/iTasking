@@ -478,7 +478,6 @@ export function App() {
           isCloudConnected={isCloudConnected}
           isSyncing={isSyncing}
           onRefreshCloud={handleRefreshCloud}
-          onForcePushCloud={handleForcePushCloud}
         />
 
         {/* Workspace Body */}
