@@ -109,8 +109,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           {[
-            { id: 'monday', label: 'Main Table', icon: Table2, badge: totalTasksCount },
-            { id: 'calendar', label: 'Calendar Schedule', icon: Calendar },
+            { id: 'calendar', label: 'Calendar', icon: Calendar },
+            { id: 'monday', label: 'Table', icon: Table2, badge: totalTasksCount },
             { id: 'daily', label: 'Daily Activity', icon: MessageSquare },
             { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'cards', label: 'Cards View', icon: LayoutGrid },

@@ -39,7 +39,7 @@ interface SettingsModalProps {
 }
 
 const PRESET_COLORS = [
-  { name: 'Monday Blue', hex: '#0073ea' },
+  { name: 'Ocean Blue', hex: '#0073ea' },
   { name: 'Emerald Green', hex: '#00c875' },
   { name: 'Amber Orange', hex: '#fdab3d' },
   { name: 'Rose Red', hex: '#e2445c' },

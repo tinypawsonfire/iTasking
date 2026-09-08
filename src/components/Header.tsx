@@ -83,12 +83,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div>
               <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
                 iTasking
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#e5f4ff] text-[#0073ea] border border-[#cce5ff]">
-                  Monday Style ✨
-                </span>
               </h1>
               <p className="text-[11px] text-slate-500">
-                ระบบจัดการงาน ไทม์ไลน์ และสถานะสีสไตล์ Monday.com
+                ระบบจัดการและติดตามงานทีมอัจฉริยะ (Smart Task Tracker)
               </p>
             </div>
           </div>
@@ -231,28 +228,30 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="py-2.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
           {/* View tabs */}
           <div className="flex items-center bg-slate-100 p-1 rounded-xl gap-1 text-xs font-bold overflow-x-auto">
-            <button
-              onClick={() => setActiveView('monday')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
-                activeView === 'monday'
-                  ? 'bg-white text-[#0073ea] shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Table2 className="w-3.5 h-3.5" />
-              <span>📋 Main Table (Monday)</span>
-            </button>
-
+            {/* 1. Calendar View */}
             <button
               onClick={() => setActiveView('calendar')}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
                 activeView === 'calendar'
                   ? 'bg-white text-[#0073ea] shadow-xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Calendar className="w-3.5 h-3.5" />
-              <span>📆 ปฏิทินงาน (Calendar)</span>
+              <span>📆 Calendar</span>
+            </button>
+
+            {/* 2. Table View */}
+            <button
+              onClick={() => setActiveView('monday')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                activeView === 'monday'
+                  ? 'bg-white text-[#0073ea] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Table2 className="w-3.5 h-3.5" />
+              <span>📋 Table</span>
             </button>
 
             <button

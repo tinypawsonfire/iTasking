@@ -47,7 +47,7 @@ export function App() {
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [categories, setCategories] = useState<ModuleCategory[]>([]);
-  const [activeView, setActiveView] = useState<SimpleActiveView>('monday');
+  const [activeView, setActiveView] = useState<SimpleActiveView>('calendar');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   // Cloud Sync State
@@ -462,7 +462,7 @@ export function App() {
             <span className="font-bold text-slate-800 flex items-center gap-1.5">
               🚀 iTasking Pro • Ultra-Premium Workspace
             </span>
-            <span className="text-slate-400">Glassmorphism • Monday.com Engine • AI Intelligence</span>
+            <span className="text-slate-400">Smart Task Tracker • Calendar & Timeline • Cloud Synced</span>
           </div>
         </footer>
       </div>
