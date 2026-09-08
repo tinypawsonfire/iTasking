@@ -312,6 +312,15 @@ export function App() {
     syncCategoriesToCloud(newCats).catch(() => {});
   };
 
+  const handleDeleteCategory = (categoryName: string) => {
+    const clean = categoryName.trim().toLowerCase();
+    const newCats = categories.filter((c) => c.name.trim().toLowerCase() !== clean);
+    setCategories(newCats);
+    saveCategoriesToStorage(newCats);
+    broadcastUpdate(tasks, newCats);
+    syncCategoriesToCloud(newCats).catch(() => {});
+  };
+
   const handleQuickStatusChange = (taskId: string, newStatus: TaskStatus) => {
     const updated = tasks.map((t) => {
       if (t.id === taskId) {
@@ -610,6 +619,8 @@ export function App() {
         }}
         onSaveUpdate={handleUpdateTask}
         onDeleteTask={handleDeleteTask}
+        onDeleteCategory={handleDeleteCategory}
+        onAddCategory={handleAddCategory}
         availableUsers={availableAssignees}
         modules={categories}
         initialTab={initialUpdateTab}

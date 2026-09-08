@@ -33,6 +33,8 @@ interface QuickUpdateModalProps {
   onClose: () => void;
   onSaveUpdate: (updatedTask: Task) => void;
   onDeleteTask?: (taskId: string) => void;
+  onDeleteCategory?: (categoryName: string) => void;
+  onAddCategory?: (name: string) => void;
   availableUsers: string[];
   modules?: ModuleCategory[];
   initialTab?: 'log' | 'edit';
@@ -45,6 +47,8 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   onClose,
   onSaveUpdate,
   onDeleteTask,
+  onDeleteCategory,
+  onAddCategory,
   availableUsers,
   modules = [],
   initialTab = 'log',
@@ -80,6 +84,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   const [editModule, setEditModule] = useState(task.module || '');
   const [isCreatingNewModule, setIsCreatingNewModule] = useState(false);
   const [newModuleName, setNewModuleName] = useState('');
+  const [isManagingCategories, setIsManagingCategories] = useState(false);
   const [editAssignees, setEditAssignees] = useState<string[]>(task.assignees || []);
   const [assigneeInput, setAssigneeInput] = useState('');
   const [editStartDate, setEditStartDate] = useState(task.startDate || '');
@@ -105,6 +110,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       setEditTitle(task.title || '');
       setEditModule(task.module || '');
       setIsCreatingNewModule(false);
+      setIsManagingCategories(false);
       setNewModuleName('');
       setEditAssignees([...(task.assignees || [])]);
       setAssigneeInput('');
@@ -283,20 +289,25 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
     onClose();
   };
 
-  // Distinct list of all available modules
+  // Distinct list of all available modules (from real user data only)
   const allModulesList = Array.from(
     new Set([
       ...(modules.map((m) => m.name)),
       task.module,
-      'PARTNER',
-      'OPERATION',
-      'MARKETING',
-      'HR',
-      'FINANCE',
-      'IT / DEV',
-      'ICI',
     ].filter(Boolean))
   );
+
+  const handleDeleteCategoryClick = (moduleName: string) => {
+    if (window.confirm(`คุณต้องการนำหมวดหมู่ "${moduleName}" ออกจากระบบใช่หรือไม่?`)) {
+      if (onDeleteCategory) {
+        onDeleteCategory(moduleName);
+      }
+      if (editModule.toLowerCase() === moduleName.toLowerCase()) {
+        const remaining = allModulesList.filter((x) => x.toLowerCase() !== moduleName.toLowerCase());
+        setEditModule(remaining[0] || 'ทั่วไป');
+      }
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
@@ -612,20 +623,77 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
             </div>
 
             {/* 2. Category / Module Editing */}
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                   <Layers className="w-3.5 h-3.5 text-indigo-600" /> หมวดหมู่ / ฝ่าย (Category / Module)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsCreatingNewModule(!isCreatingNewModule)}
-                  className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>{isCreatingNewModule ? 'เลือกจากรายการเดิม' : '+ สร้างหมวดหมู่ใหม่'}</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManagingCategories(!isManagingCategories);
+                      setIsCreatingNewModule(false);
+                    }}
+                    className={`text-xs font-semibold flex items-center gap-1 px-2 py-0.5 rounded-lg border transition-colors cursor-pointer ${
+                      isManagingCategories
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'text-rose-600 hover:text-rose-800 hover:bg-rose-50 border-transparent'
+                    }`}
+                    title="ลบหมวดหมู่ที่ไม่ต้องการใช้ออก"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    <span>{isManagingCategories ? 'เสร็จสิ้น' : 'ลบหมวดหมู่'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCreatingNewModule(!isCreatingNewModule);
+                      setIsManagingCategories(false);
+                    }}
+                    className="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{isCreatingNewModule ? 'เลือกจากรายการ' : '+ สร้างหมวดใหม่'}</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Managing / Deleting Categories Panel */}
+              {isManagingCategories && (
+                <div className="p-3 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-2 animate-fadeIn">
+                  <div className="flex items-center justify-between text-xs font-bold text-rose-800">
+                    <span className="flex items-center gap-1">
+                      <Trash2 className="w-3.5 h-3.5 text-rose-600" /> กดปุ่ม ✕ ที่หมวดหมู่ที่ต้องการลบออก:
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsManagingCategories(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs cursor-pointer font-bold"
+                    >
+                      ปิด
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {allModulesList.map((m) => (
+                      <span
+                        key={m}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-white text-slate-700 border border-slate-200 shadow-2xs group"
+                      >
+                        <span>{m}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCategoryClick(m)}
+                          className="w-4 h-4 rounded-full bg-slate-100 hover:bg-rose-600 text-slate-400 hover:text-white flex items-center justify-center transition-colors cursor-pointer text-[10px]"
+                          title={`ลบหมวดหมู่ "${m}"`}
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {!isCreatingNewModule ? (
                 <select
@@ -633,6 +701,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
                   onChange={(e) => {
                     if (e.target.value === '__new__') {
                       setIsCreatingNewModule(true);
+                      setIsManagingCategories(false);
                     } else {
                       setEditModule(e.target.value);
                     }
@@ -653,14 +722,18 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
                     autoFocus
                     value={newModuleName}
                     onChange={(e) => setNewModuleName(e.target.value)}
-                    placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ เช่น PARTNER, CLAIM, ICI..."
+                    placeholder="พิมพ์ชื่อหมวดหมู่ใหม่ เช่น Partner, True, Insurance..."
                     className="flex-1 px-3.5 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-indigo-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                   <button
                     type="button"
                     onClick={() => {
                       if (newModuleName.trim()) {
-                        setEditModule(newModuleName.trim());
+                        const clean = newModuleName.trim();
+                        setEditModule(clean);
+                        if (onAddCategory) {
+                          onAddCategory(clean);
+                        }
                         setIsCreatingNewModule(false);
                       } else {
                         setIsCreatingNewModule(false);
