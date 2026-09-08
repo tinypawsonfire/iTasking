@@ -146,8 +146,8 @@ export function App() {
   useEffect(() => {
     const pollInterval = setInterval(() => {
       if (document.visibilityState === 'visible') {
-        fetchTasksFromCloud()
-          .then((tasksRes) => {
+        Promise.all([fetchTasksFromCloud(), fetchCategoriesFromCloud()])
+          .then(([tasksRes, catsRes]) => {
             if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
               setIsCloudConnected(true);
               setTasks((prevTasks) => {
@@ -159,6 +159,16 @@ export function App() {
                 return prevTasks;
               });
             }
+            if (catsRes.isCloudConnected && Array.isArray(catsRes.categories) && catsRes.categories.length > 0) {
+              setCategories((prevCats) => {
+                const prevStr = JSON.stringify(prevCats);
+                const nextStr = JSON.stringify(catsRes.categories);
+                if (prevStr !== nextStr) {
+                  return catsRes.categories;
+                }
+                return prevCats;
+              });
+            }
           })
           .catch(() => {});
       }
@@ -166,11 +176,14 @@ export function App() {
 
     const onFocusOrVisible = () => {
       if (document.visibilityState === 'visible') {
-        fetchTasksFromCloud()
-          .then((tasksRes) => {
+        Promise.all([fetchTasksFromCloud(), fetchCategoriesFromCloud()])
+          .then(([tasksRes, catsRes]) => {
             if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
               setIsCloudConnected(true);
               setTasks(tasksRes.tasks);
+            }
+            if (catsRes.isCloudConnected && Array.isArray(catsRes.categories) && catsRes.categories.length > 0) {
+              setCategories(catsRes.categories);
             }
           })
           .catch(() => {});

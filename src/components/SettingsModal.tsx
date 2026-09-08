@@ -22,7 +22,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { exportDataAsJson } from '../utils/storage';
-import { checkCloudHealth } from '../utils/api';
+import { checkCloudHealth, syncAllTasksToCloud, syncCategoriesToCloud } from '../utils/api';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -80,6 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   // Ping Test State
   const [pingStatus, setPingStatus] = useState<string | null>(null);
   const [isPinging, setIsPinging] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
 
   // 1. Add New Category
   const handleAddCategory = (e: React.FormEvent) => {
@@ -624,6 +625,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span>ดึงข้อมูลล่าสุดจาก Cloud</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsPushing(true);
+                      try {
+                        await syncAllTasksToCloud(tasks);
+                        await syncCategoriesToCloud(categories);
+                        setPingStatus('✓ อัปโหลดข้อมูลเครื่องนี้ขึ้น Cloud ให้ทุกคนเห็นเรียบร้อยแล้ว!');
+                        setTimeout(() => setPingStatus(null), 4000);
+                      } catch {
+                        setPingStatus('เกิดข้อผิดพลาดในการส่งข้อมูล');
+                      } finally {
+                        setIsPushing(false);
+                      }
+                    }}
+                    disabled={isPushing}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{isPushing ? 'กำลังส่งข้อมูล...' : 'ส่งข้อมูลเครื่องนี้ขึ้น Cloud ให้ทุกคนเห็น'}</span>
+                  </button>
                 </div>
 
                 {pingStatus && (
