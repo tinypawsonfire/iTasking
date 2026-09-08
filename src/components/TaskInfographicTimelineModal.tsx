@@ -571,108 +571,166 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
 
             {/* Horizontal Left-to-Right Stepper Track */}
             <div className="relative pt-2 pb-1">
-              <div className="overflow-x-auto pb-3 pt-2 custom-scrollbar">
-                <div className="flex items-stretch gap-3 sm:gap-4 min-w-[720px]">
+              <div className="overflow-x-auto pb-4 pt-1 custom-scrollbar">
+                <div className="flex items-start gap-4 min-w-[760px] px-1">
                   {roadmapMilestones.map((m, idx) => {
                     const isDone = m.status === 'done';
                     const isActive = m.status === 'active';
+                    const isFirst = idx === 0;
                     const isLast = idx === roadmapMilestones.length - 1;
 
                     return (
                       <div
                         key={m.id}
-                        className="flex-1 min-w-[210px] sm:min-w-[230px] flex flex-col justify-between relative"
+                        className="flex-1 min-w-[220px] sm:min-w-[240px] flex flex-col items-center group"
                       >
-                        {/* Connecting Line to next card */}
-                        {!isLast && (
-                          <div className="hidden sm:block absolute top-[28px] left-[50%] right-[-50%] h-[2.5px] z-0">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                isDone
-                                  ? 'bg-gradient-to-r from-emerald-500 to-[#0073ea]'
-                                  : isActive
-                                  ? 'bg-gradient-to-r from-[#0073ea] to-slate-200'
-                                  : 'bg-slate-200 border-t border-dashed border-slate-300'
-                              }`}
-                            />
-                          </div>
-                        )}
+                        {/* 1. Dedicated Top Rail Track (Nodes & Connectors) */}
+                        <div className="w-full relative flex items-center justify-center h-14">
+                          {/* Connector Line Left (from previous node) */}
+                          {!isFirst && (
+                            <div className="absolute left-0 right-1/2 top-1/2 -translate-y-1/2 h-1 z-0">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  isDone || isActive
+                                    ? 'bg-gradient-to-r from-emerald-500 to-[#0073ea]'
+                                    : 'bg-slate-200 border-t border-dashed border-slate-300'
+                                }`}
+                              />
+                            </div>
+                          )}
 
-                        {/* Milestone Card */}
+                          {/* Connector Line Right (to next node) */}
+                          {!isLast && (
+                            <div className="absolute left-1/2 right-0 top-1/2 -translate-y-1/2 h-1 z-0">
+                              <div
+                                className={`h-full rounded-full transition-all ${
+                                  isDone
+                                    ? 'bg-gradient-to-r from-[#0073ea] to-emerald-500'
+                                    : isActive
+                                    ? 'bg-gradient-to-r from-[#0073ea] to-slate-200'
+                                    : 'bg-slate-200 border-t border-dashed border-slate-300'
+                                }`}
+                              />
+                            </div>
+                          )}
+
+                          {/* Central Node Pin Badge */}
+                          <div
+                            className={`relative z-10 w-11 h-11 rounded-2xl flex items-center justify-center font-black text-xs transition-all duration-300 shadow-sm ${
+                              isActive
+                                ? 'bg-gradient-to-tr from-[#0073ea] via-indigo-600 to-blue-600 text-white ring-4 ring-blue-100 shadow-lg shadow-blue-500/30 scale-105'
+                                : isDone
+                                ? 'bg-emerald-500 text-white ring-4 ring-emerald-50 shadow-md shadow-emerald-500/20'
+                                : 'bg-white text-slate-400 border-2 border-slate-200 shadow-2xs'
+                            }`}
+                          >
+                            {m.icon === 'start' && <Sparkles className="w-4 h-4" />}
+                            {m.icon === 'status' && <ArrowRight className="w-4 h-4 stroke-[2.5]" />}
+                            {m.icon === 'update' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <MessageSquare className="w-4 h-4" />)}
+                            {m.icon === 'deadline' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <Flag className="w-4 h-4 text-amber-500" />)}
+                          </div>
+
+                          {/* Step Number Tag on Node */}
+                          <span
+                            className={`absolute -bottom-1.5 z-20 px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black border ${
+                              isActive
+                                ? 'bg-blue-600 text-white border-blue-400 shadow-xs'
+                                : isDone
+                                ? 'bg-emerald-600 text-white border-emerald-400'
+                                : 'bg-slate-100 text-slate-500 border-slate-300'
+                            }`}
+                          >
+                            0{idx + 1}
+                          </span>
+                        </div>
+
+                        {/* Vertical Connector Stem from Node to Card */}
+                        <div className="w-0.5 h-3 bg-slate-200" />
+
+                        {/* 2. Milestone Card (Placed safely BELOW the rail track) */}
                         <div
-                          className={`p-4 rounded-2xl border transition-all h-full flex flex-col justify-between relative z-10 ${
+                          className={`w-full rounded-2xl border transition-all duration-200 flex flex-col justify-between overflow-hidden ${
                             isActive
-                              ? 'bg-blue-50/70 border-2 border-blue-400/90 shadow-md shadow-blue-500/10 ring-2 ring-blue-100'
+                              ? 'bg-gradient-to-b from-blue-50/60 to-white border-2 border-blue-400/90 shadow-lg shadow-blue-500/10 ring-2 ring-blue-100'
                               : isDone
-                              ? 'bg-slate-50/80 border-slate-200/90 hover:bg-slate-50'
-                              : 'bg-white border-slate-200/70'
+                              ? 'bg-white/95 border-slate-200/90 shadow-2xs hover:shadow-md hover:border-slate-300'
+                              : 'bg-slate-50/50 border-slate-200/80'
                           }`}
                         >
-                          {/* Top: Icon + Date */}
-                          <div className="flex items-center gap-2.5 mb-2.5">
-                            <div
-                              className={`w-9 h-9 rounded-2xl flex items-center justify-center font-black text-xs shadow-xs shrink-0 ${
-                                isDone
-                                  ? 'bg-emerald-500 text-white shadow-emerald-500/20'
-                                  : isActive
-                                  ? 'bg-gradient-to-tr from-[#0073ea] to-blue-600 text-white ring-4 ring-blue-100 shadow-blue-500/30'
-                                  : 'bg-slate-100 text-slate-400 border border-slate-200'
-                              }`}
-                            >
-                              {m.icon === 'start' && <Sparkles className="w-4 h-4" />}
-                              {m.icon === 'status' && <ArrowRight className="w-4 h-4 stroke-[2.5]" />}
-                              {m.icon === 'update' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <MessageSquare className="w-4 h-4" />)}
-                              {m.icon === 'deadline' && (isDone ? <Check className="w-4 h-4 stroke-[2.5]" /> : <Flag className="w-4 h-4 text-blue-600" />)}
-                            </div>
+                          {/* Card Top Header: Step Label & Date Pill */}
+                          <div className="p-3.5 pb-2">
+                            <div className="flex items-center justify-between gap-1.5 mb-2">
+                              <span className="text-[10px] font-mono font-extrabold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+                                {m.type === 'start'
+                                  ? '🚀 จุดเริ่มต้น'
+                                  : m.type === 'deadline'
+                                  ? '🎯 กำหนดส่งมอบ'
+                                  : `📍 ขั้นตอนที่ ${idx + 1}`}
+                              </span>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="text-[10px] font-mono font-bold text-slate-400 uppercase flex items-center gap-1">
-                                <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
-                                <span>
-                                  {m.type === 'start'
-                                    ? 'วันเริ่มงาน'
-                                    : m.type === 'deadline'
-                                    ? 'กำหนดส่ง'
-                                    : `ขั้นตอนที่ ${idx + 1}`}
-                                </span>
-                              </div>
-                              <div
-                                className={`text-xs font-black truncate ${
-                                  isActive ? 'text-[#0073ea]' : 'text-slate-800'
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                                  isActive
+                                    ? 'bg-blue-100/90 text-blue-700 border-blue-200'
+                                    : 'bg-slate-100 text-slate-600 border-slate-200/70'
                                 }`}
                               >
-                                {m.dateDisplay}
-                              </div>
+                                <Calendar className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                <span>{m.dateDisplay}</span>
+                              </span>
                             </div>
-                          </div>
 
-                          {/* Body: Title & Summary */}
-                          <div className="space-y-1.5 flex-1 my-1">
-                            <div className="text-xs font-black text-slate-900 leading-snug">
+                            {/* Milestone Title */}
+                            <h4
+                              className={`text-xs font-black tracking-tight leading-snug mb-1.5 ${
+                                isActive ? 'text-blue-900' : 'text-slate-900'
+                              }`}
+                            >
                               {m.title}
-                            </div>
-                            <div className="text-[11px] text-slate-600 leading-relaxed line-clamp-3 bg-white/80 p-2 rounded-xl border border-slate-100/90 shadow-2xs">
-                              "{m.summary}"
+                            </h4>
+
+                            {/* Summary Callout Note */}
+                            <div
+                              className={`text-[11px] leading-relaxed p-2.5 rounded-xl border-l-3 ${
+                                isActive
+                                  ? 'bg-white border-blue-500 text-slate-700 shadow-2xs font-medium'
+                                  : isDone
+                                  ? 'bg-slate-50 border-emerald-500 text-slate-600 font-medium'
+                                  : 'bg-white/70 border-slate-300 text-slate-500'
+                              }`}
+                            >
+                              {m.summary}
                             </div>
                           </div>
 
-                          {/* Footer: Author & Status pill */}
-                          <div className="pt-2.5 mt-2 border-t border-slate-200/60 flex items-center justify-between text-[10px] font-bold">
-                            <div className="flex items-center gap-1 text-slate-500 truncate max-w-[110px]">
-                              <User className="w-3 h-3 text-slate-400 shrink-0" />
+                          {/* Card Footer: Author & Status Pill */}
+                          <div className="px-3.5 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between gap-2 text-[10px] font-bold">
+                            <div className="flex items-center gap-1.5 text-slate-500 truncate max-w-[120px]">
+                              <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 text-[9px] flex items-center justify-center font-black shrink-0">
+                                {m.author?.slice(0, 1) || 'U'}
+                              </div>
                               <span className="truncate">{m.author || 'ทีมงาน'}</span>
                             </div>
 
                             <span
-                              className={`px-2 py-0.5 rounded-md border ${
+                              className={`px-2 py-0.5 rounded-md border text-[10px] shrink-0 ${
                                 isActive
-                                  ? 'bg-blue-100/90 text-blue-700 border-blue-200 font-extrabold'
+                                  ? 'bg-blue-600 text-white border-blue-600 font-black shadow-2xs flex items-center gap-1'
                                   : isDone
-                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold'
+                                  : 'bg-slate-100 text-slate-500 border-slate-200 font-medium'
                               }`}
                             >
-                              {isActive ? '📍 ล่าสุด' : isDone ? '✓ ดำเนินการแล้ว' : 'รอส่งมอบ'}
+                              {isActive ? (
+                                <>
+                                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                  <span>ขั้นตอนล่าสุด</span>
+                                </>
+                              ) : isDone ? (
+                                '✓ สำเร็จแล้ว'
+                              ) : (
+                                'รอส่งมอบ'
+                              )}
                             </span>
                           </div>
                         </div>
