@@ -6,34 +6,51 @@ function getCredentials() {
   return { url, token, isConfigured: Boolean(url && token) };
 }
 
-async function redisGet(key: string) {
+async function redisCommand(command: any[]) {
   const { url, token, isConfigured } = getCredentials();
-  if (!isConfigured) return null;
-  const res = await fetch(`${url}/get/${key}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) return null;
-  const data: any = await res.json();
-  if (!data?.result) return null;
+  if (!isConfigured || !url || !token) {
+    return { success: false, error: 'Database credentials not configured' };
+  }
+
   try {
-    return typeof data.result === 'string' ? JSON.parse(data.result) : data.result;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(command),
+    });
+
+    const data: any = await res.json();
+    if (!res.ok || data.error) {
+      console.error('Upstash Redis error:', data);
+      return { success: false, error: data?.error || `HTTP ${res.status}` };
+    }
+    return { success: true, result: data.result };
+  } catch (err: any) {
+    console.error('Redis fetch error:', err);
+    return { success: false, error: err?.message };
+  }
+}
+
+async function redisGet(key: string) {
+  const res = await redisCommand(['GET', key]);
+  if (!res.success || res.result === null || res.result === undefined) return null;
+  try {
+    return typeof res.result === 'string' ? JSON.parse(res.result) : res.result;
   } catch {
-    return data.result;
+    return res.result;
   }
 }
 
 async function redisSet(key: string, value: any) {
-  const { url, token, isConfigured } = getCredentials();
-  if (!isConfigured) return false;
-  const res = await fetch(`${url}/set/${key}`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(typeof value === 'string' ? value : JSON.stringify(value)),
-  });
-  return res.ok;
+  const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+  const res = await redisCommand(['SET', key, strValue]);
+  if (!res.success) {
+    throw new Error(res.error || 'Failed to write to Redis');
+  }
+  return true;
 }
 
 export default async function handler(req: any, res: any) {
@@ -54,6 +71,16 @@ export default async function handler(req: any, res: any) {
     });
   }
 
+  // Parse body safely if string
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      // ignore
+    }
+  }
+
   try {
     if (req.method === 'GET') {
       const tasks = await redisGet(DB_TASKS_KEY);
@@ -64,7 +91,6 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === 'POST') {
-      const body = req.body;
       let newTasksList: any[] = [];
 
       if (Array.isArray(body?.tasks)) {
@@ -88,7 +114,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === 'PUT') {
-      const { task, taskId, updates } = req.body || {};
+      const { task, taskId, updates } = body || req.query || {};
       const current = (await redisGet(DB_TASKS_KEY)) || [];
       const currentTasks: any[] = Array.isArray(current) ? current : [];
 
@@ -120,7 +146,7 @@ export default async function handler(req: any, res: any) {
     }
 
     if (req.method === 'DELETE') {
-      const { taskId } = req.body || req.query || {};
+      const { taskId } = body || req.query || {};
       if (!taskId) {
         return res.status(400).json({ error: 'taskId is required' });
       }

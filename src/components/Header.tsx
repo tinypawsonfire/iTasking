@@ -112,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
               ) : isCloudConnected ? (
                 <>
                   <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="hidden md:inline">Cloud Synced</span>
+                  <span className="hidden sm:inline">ซิงค์เรียลไทม์ Live</span>
                   {onRefreshCloud && (
                     <button
                       onClick={onRefreshCloud}

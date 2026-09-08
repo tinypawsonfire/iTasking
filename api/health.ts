@@ -12,8 +12,9 @@ export default async function handler(req: any, res: any) {
 
   const isConfigured = Boolean(url && token);
   let dbOnline = false;
+  let dbWritable = false;
 
-  if (isConfigured) {
+  if (isConfigured && url && token) {
     try {
       const pingRes = await fetch(`${url}/ping`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -22,8 +23,23 @@ export default async function handler(req: any, res: any) {
         const data = await pingRes.json();
         dbOnline = data.result === 'PONG';
       }
+
+      // Test write command
+      const writeRes = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(['SET', 'itasking:health:ping', 'pong']),
+      });
+      if (writeRes.ok) {
+        const wData = await writeRes.json();
+        dbWritable = wData.result === 'OK';
+      }
     } catch {
       dbOnline = false;
+      dbWritable = false;
     }
   }
 
@@ -32,6 +48,7 @@ export default async function handler(req: any, res: any) {
     app: 'iTasking Cloud',
     dbConfigured: isConfigured,
     dbOnline,
+    dbWritable,
     timestamp: new Date().toISOString(),
   });
 }

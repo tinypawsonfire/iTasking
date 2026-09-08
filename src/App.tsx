@@ -84,6 +84,39 @@ export function App() {
     }
   });
 
+  // Broadcast channel for instant cross-tab sync
+  const broadcastUpdate = (newTasks: Task[], newCats?: ModuleCategory[]) => {
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        const channel = new BroadcastChannel('itasking_realtime');
+        channel.postMessage({ type: 'TASKS_SYNC', tasks: newTasks });
+        if (newCats) {
+          channel.postMessage({ type: 'CATEGORIES_SYNC', categories: newCats });
+        }
+        channel.close();
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  // Listen to cross-tab broadcast updates
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const channel = new BroadcastChannel('itasking_realtime');
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'TASKS_SYNC' && Array.isArray(event.data.tasks)) {
+        setTasks(event.data.tasks);
+      }
+      if (event.data?.type === 'CATEGORIES_SYNC' && Array.isArray(event.data.categories)) {
+        setCategories(event.data.categories);
+      }
+    };
+    return () => {
+      channel.close();
+    };
+  }, []);
+
   // Load clean data from Local Cache first, then sync from Vercel Cloud
   useEffect(() => {
     // 1. Instant local render
@@ -109,6 +142,51 @@ export function App() {
       });
   }, []);
 
+  // Real-time Background Polling (Every 4 seconds) & Window Focus Sync
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchTasksFromCloud()
+          .then((tasksRes) => {
+            if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
+              setIsCloudConnected(true);
+              setTasks((prevTasks) => {
+                const prevStr = JSON.stringify(prevTasks);
+                const nextStr = JSON.stringify(tasksRes.tasks);
+                if (prevStr !== nextStr) {
+                  return tasksRes.tasks;
+                }
+                return prevTasks;
+              });
+            }
+          })
+          .catch(() => {});
+      }
+    }, 4000);
+
+    const onFocusOrVisible = () => {
+      if (document.visibilityState === 'visible') {
+        fetchTasksFromCloud()
+          .then((tasksRes) => {
+            if (tasksRes.isCloudConnected && Array.isArray(tasksRes.tasks)) {
+              setIsCloudConnected(true);
+              setTasks(tasksRes.tasks);
+            }
+          })
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
+  }, []);
+
   const handleRefreshCloud = async () => {
     setIsSyncing(true);
     try {
@@ -131,6 +209,7 @@ export function App() {
   const handleUpdateTasks = (newTasks: Task[]) => {
     setTasks(newTasks);
     saveTasksToStorage(newTasks);
+    broadcastUpdate(newTasks);
     // Background cloud sync
     syncAllTasksToCloud(newTasks).catch(() => {});
   };
@@ -139,6 +218,7 @@ export function App() {
     const newTasks = tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t));
     setTasks(newTasks);
     saveTasksToStorage(newTasks);
+    broadcastUpdate(newTasks);
     setActiveTaskToUpdate(null);
     setIsUpdateModalOpen(false);
     // Background cloud sync
@@ -160,6 +240,7 @@ export function App() {
       const newCats = [...categories, newCat];
       setCategories(newCats);
       saveCategoriesToStorage(newCats);
+      broadcastUpdate(newTasks, newCats);
       syncCategoriesToCloud(newCats).catch(() => {});
     }
   };
@@ -168,6 +249,7 @@ export function App() {
     const newTasks = tasks.filter((t) => t.id !== taskId);
     setTasks(newTasks);
     saveTasksToStorage(newTasks);
+    broadcastUpdate(newTasks);
     deleteTaskFromCloud(taskId).catch(() => {});
     setIsUpdateModalOpen(false);
     setActiveTaskToUpdate(null);
