@@ -168,7 +168,7 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
         quickLogText.trim() ||
         (quickStatus !== task.status
           ? `เปลี่ยนสถานะเป็น ${statusConfig.label}`
-          : `ปรับความคืบหน้าเป็น ${quickProgress}%`),
+          : `อัปเดตความคืบหน้าของงาน`),
       previousStatus: task.status,
       newStatus: quickStatus,
       progressPercent: quickProgress,
@@ -195,11 +195,10 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
     const lines = [
       `📊 [สรุปความคืบหน้า Infographic: ${task.title}]`,
       `🏷️ หมวดหมู่: ${task.module} | สถานะ: ${statusConfig.label}`,
-      `📈 ความคืบหน้า: ${task.progress}%`,
       `👤 ผู้รับผิดชอบ: ${task.assignees.join(', ')}`,
       `📅 ไทม์ไลน์: ${formatThaiDate(task.startDate)} ➔ ${task.deadlineText || formatThaiDate(task.deadlineDate)}`,
       alertInfo.badgeText ? `⏰ กำหนดส่ง: ${alertInfo.badgeText}` : '',
-      totalSubtasks > 0 ? `📋 ขั้นตอนย่อย: สำเร็จแล้ว ${completedSubtasks}/${totalSubtasks} (${subtasksPercent}%)` : '',
+      totalSubtasks > 0 ? `📋 ขั้นตอนย่อย: สำเร็จแล้ว ${completedSubtasks}/${totalSubtasks} ขั้นตอน` : '',
       activityTrail.length > 0 ? `\n📝 อัปเดตล่าสุด: "${activityTrail[0].content}" (${formatThaiDate(activityTrail[0].timestamp)})` : '',
       `\n🔗 ดูบนระบบ: https://itasking.vercel.app`,
     ].filter(Boolean);
@@ -250,12 +249,12 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
         title: 'ดำเนินการหลัก',
         desc: isBlocked
           ? 'ติดปัญหา / รอแก้ไข'
-          : `${task.progress}% ดำเนินการแล้ว`,
+          : 'อยู่ระหว่างดำเนินงานตามแผน',
         badge: isBlocked
           ? 'ติดปัญหา (Stuck)'
           : step2Done
           ? 'ขั้นตอนหลักเสร็จสิ้น'
-          : 'กำลังเร่งรัดงาน',
+          : 'กำลังดำเนินการ',
         status: isBlocked ? 'blocked' : step2Done ? 'done' : step2Active ? 'active' : 'pending',
       },
       {
@@ -269,7 +268,7 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
         step: 4,
         title: 'เป้าหมายสำเร็จ',
         desc: task.deadlineText || formatThaiDate(task.deadlineDate),
-        badge: isDone ? 'เสร็จสมบูรณ์ 100%' : alertInfo.badgeText,
+        badge: isDone ? 'เสร็จสมบูรณ์' : alertInfo.badgeText,
         status: step4Done ? 'done' : 'pending',
       },
     ];
@@ -387,59 +386,42 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
 
           {/* 4 Infographic Key Metric Widgets */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            {/* Widget 1: Progress Circle */}
+            {/* Widget 1: Current Stage & Status */}
             <div className="bg-white p-4 rounded-3xl border border-slate-200/90 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between text-xs font-bold text-slate-500 mb-2">
-                <span>ความคืบหน้า</span>
-                <TrendingUp className="w-4 h-4 text-indigo-600" />
+                <span>ขั้นตอนปัจจุบัน</span>
+                <Milestone className="w-4 h-4 text-indigo-600" />
               </div>
-              <div className="flex items-center gap-3 my-1">
-                <div className="relative w-12 h-12 shrink-0">
-                  <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
-                    <path
-                      className="text-slate-100"
-                      strokeWidth="3.5"
-                      stroke="currentColor"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                    <path
-                      className={
-                        task.progress === 100
-                          ? 'text-emerald-500'
-                          : task.progress >= 50
-                          ? 'text-[#0073ea]'
-                          : 'text-amber-500'
-                      }
-                      strokeDasharray={`${task.progress}, 100`}
-                      strokeWidth="3.8"
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      fill="none"
-                      d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center font-black text-xs text-slate-900">
-                    {task.progress}%
-                  </div>
+              <div className="my-1 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded-xl font-extrabold text-xs shadow-2xs flex items-center gap-1.5 ${statusConfig.bg} ${statusConfig.text}`}>
+                    {task.status === 'completed' && <Check className="w-3.5 h-3.5" />}
+                    {task.status === 'in_progress' && (
+                      <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                    )}
+                    <span>{statusConfig.label}</span>
+                  </span>
                 </div>
-                <div>
-                  <div className="text-sm font-black text-slate-800">
-                    {task.progress === 100
-                      ? 'สำเร็จแล้ว'
-                      : task.progress >= 75
-                      ? 'ใกล้สมบูรณ์'
-                      : task.progress >= 30
-                      ? 'กำลังเร่งรัด'
-                      : 'เพิ่งเริ่มต้น'}
-                  </div>
-                  <div className="text-[11px] text-slate-400">เป้าหมาย 100%</div>
+                <div className="text-xs font-black text-slate-800 truncate">
+                  {stages.find((s) => s.status === 'active')?.title || (task.status === 'completed' ? 'เป้าหมายสำเร็จ' : 'ดำเนินการหลัก')}
+                </div>
+                <div className="text-[11px] text-slate-400 truncate">
+                  {task.status === 'completed' ? 'ส่งมอบงานครบถ้วน' : 'อยู่ระหว่างดำเนินการตามแผน'}
                 </div>
               </div>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2">
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full"
-                  style={{ width: `${task.progress}%` }}
+                  style={{
+                    width:
+                      task.status === 'completed'
+                        ? '100%'
+                        : task.status === 'review'
+                        ? '75%'
+                        : task.status === 'in_progress'
+                        ? '50%'
+                        : '25%',
+                  }}
                 />
               </div>
             </div>
@@ -476,13 +458,15 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
                   {completedSubtasks} / {totalSubtasks} <span className="text-xs font-semibold text-slate-400">เสร็จ</span>
                 </div>
                 <div className="text-[11px] text-slate-400">
-                  {totalSubtasks > 0 ? `ความคืบหน้า ${subtasksPercent}%` : 'ยังไม่มีงานย่อย'}
+                  {totalSubtasks > 0 ? `สำเร็จ ${completedSubtasks} จาก ${totalSubtasks} รายการ` : 'ยังไม่มีงานย่อย'}
                 </div>
               </div>
               <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-2">
                 <div
                   className="h-full bg-purple-500 rounded-full"
-                  style={{ width: `${subtasksPercent}%` }}
+                  style={{
+                    width: totalSubtasks > 0 ? `${(completedSubtasks / totalSubtasks) * 100}%` : '0%',
+                  }}
                 />
               </div>
             </div>
@@ -809,9 +793,9 @@ export const TaskInfographicTimelineModal: React.FC<TaskInfographicTimelineModal
                           <span className="text-xs font-black text-slate-800">
                             {item.author}
                           </span>
-                          {item.progressPercent !== undefined && (
+                          {item.actionType === 'progress_update' && (
                             <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-indigo-100 text-indigo-700">
-                              คืบหน้า {item.progressPercent}%
+                              อัปเดตความคืบหน้า
                             </span>
                           )}
                         </div>
