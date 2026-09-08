@@ -51,9 +51,18 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
 
   const [activeTab, setActiveTab] = useState<'log' | 'edit'>(initialTab);
 
+  const getTodayStr = () => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
   // Tab 1: Log & Progress State
   const [authorName, setAuthorName] = useState(task.assignees[0] || 'ผู้รับผิดชอบ');
   const [customAuthor, setCustomAuthor] = useState('');
+  const [logDate, setLogDate] = useState<string>(getTodayStr());
   const [logText, setLogText] = useState('');
   const [status, setStatus] = useState<TaskStatus>(task.status);
   const [progress, setProgress] = useState<number>(task.progress);
@@ -82,6 +91,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       setActiveTab(initialTab);
       setAuthorName(task.assignees[0] || 'ผู้รับผิดชอบ');
       setCustomAuthor('');
+      setLogDate(getTodayStr());
       setLogText('');
       setStatus(task.status);
       setProgress(task.progress);
@@ -133,11 +143,19 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       };
     }
 
+    let logTimestamp = new Date().toISOString();
+    if (logDate) {
+      const now = new Date();
+      const [y, m, d] = logDate.split('-').map(Number);
+      const chosenDate = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds());
+      logTimestamp = chosenDate.toISOString();
+    }
+
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
       taskId: task.id,
       author: finalAuthor,
-      timestamp: new Date().toISOString(),
+      timestamp: logTimestamp,
       actionType: status !== task.status ? 'status_change' : 'progress_update',
       content: logText.trim() || `อัปเดตความคืบหน้าเป็น ${progress}% (${status})`,
       previousStatus: task.status,
@@ -150,11 +168,15 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
     const existingAttachments = task.attachments || [];
     const updatedAttachments = newAttachment ? [...existingAttachments, newAttachment] : existingAttachments;
 
+    const updatedLogs = [newLog, ...(task.logs || [])].sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
     const updatedTask: Task = {
       ...task,
       status: isNowCompleted ? 'completed' : status,
       progress: isNowCompleted ? 100 : progress,
-      logs: [newLog, ...(task.logs || [])],
+      logs: updatedLogs,
       attachments: updatedAttachments,
       updatedAt: new Date().toISOString(),
     };
@@ -435,7 +457,59 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
               </div>
             </div>
 
-            {/* 4. Log Note / Description */}
+            {/* 4. Log Date Selector (supports backdating / retroactive logging) */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600" /> วันที่บันทึกความคืบหน้า (เลือกวันย้อนหลังได้)
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date();
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setLogDate(`${y}-${m}-${day}`);
+                    }}
+                    className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border transition-all cursor-pointer ${
+                      logDate === getTodayStr()
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    วันนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const d = new Date(Date.now() - 86400000);
+                      const y = d.getFullYear();
+                      const m = String(d.getMonth() + 1).padStart(2, '0');
+                      const day = String(d.getDate()).padStart(2, '0');
+                      setLogDate(`${y}-${m}-${day}`);
+                    }}
+                    className={`text-[11px] px-2 py-0.5 rounded-md font-semibold border transition-all cursor-pointer ${
+                      logDate !== getTodayStr()
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    เมื่อวาน
+                  </button>
+                </div>
+              </div>
+              <input
+                type="date"
+                required
+                value={logDate}
+                onChange={(e) => setLogDate(e.target.value)}
+                className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 text-xs font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+              />
+            </div>
+
+            {/* 5. Log Note / Description */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700 block">
