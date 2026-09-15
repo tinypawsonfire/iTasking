@@ -78,9 +78,9 @@ export function App() {
   const [customUsers, setCustomUsers] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('iTasking_custom_team');
-      return saved ? JSON.parse(saved) : ['มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
+      return saved ? JSON.parse(saved) : ['Thampapon', 'Arthit', 'Muk', 'มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
     } catch {
-      return ['มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
+      return ['Thampapon', 'Arthit', 'Muk', 'มอส', 'เอก', 'แป้ง', 'นพ', 'เจมส์', 'ไอซ์'];
     }
   });
 
@@ -392,6 +392,9 @@ export function App() {
       t.assignees.forEach((a) => {
         if (a && a !== 'ยังไม่ระบุ') set.add(a);
       });
+      t.subtasks?.forEach((st) => {
+        if (st.assignee && st.assignee !== 'ยังไม่ระบุ') set.add(st.assignee);
+      });
     });
     return Array.from(set);
   }, [tasks, customUsers]);
@@ -544,6 +547,8 @@ export function App() {
                     onQuickStatusChange={handleQuickStatusChange}
                     onAddTask={handleAddTask}
                     onOpenInfographic={handleOpenInfographic}
+                    onUpdateTask={handleUpdateTask}
+                    availableUsers={availableAssignees}
                   />
                 )}
 

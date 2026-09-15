@@ -28,14 +28,17 @@ export interface Subtask {
   id: string;
   title: string;
   completed: boolean;
-  assignee?: string;
+  assignee?: string; // ผู้รับผิดชอบเฉพาะข้อ เช่น Thampapon, Muk
+  group?: string; // หัวข้อย่อย เช่น ACS Product
+  dueDate?: string;
 }
 
 export interface Task {
   id: string;
   code?: string;
-  module: string; // ประกัน, Partner, True, เคลม, Super sale, etc.
-  title: string;
+  module: string; // หัวข้อหลัก เช่น ประกัน, Partner, True, เคลม, Super sale
+  title: string; // หัวข้อรอง เช่น JIB, Power Mall, IT City
+  subTopic?: string; // หัวข้อย่อย เช่น ACS Product
   detail: string;
   assignees: string[]; // ['มอส', 'เอก']
   teams?: string[]; // ['ICI', 'iCare', 'TQC']

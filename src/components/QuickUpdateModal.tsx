@@ -24,6 +24,7 @@ import {
   Check,
   Save,
   Route,
+  ListTree,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -91,6 +92,12 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
   const [editDeadlineDate, setEditDeadlineDate] = useState(task.deadlineDate || '');
   const [editPriority, setEditPriority] = useState<Priority>(task.priority || 'medium');
   const [editDetail, setEditDetail] = useState(task.detail || '');
+  const [editSubTopic, setEditSubTopic] = useState(task.subTopic || '');
+  const [editSubtasks, setEditSubtasks] = useState(task.subtasks || []);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState(
+    task.assignees[0] || 'Thampapon'
+  );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Synchronize state whenever task or initialTab changes
@@ -118,9 +125,48 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       setEditDeadlineDate(task.deadlineDate || '');
       setEditPriority(task.priority || 'medium');
       setEditDetail(task.detail || '');
+      setEditSubTopic(task.subTopic || '');
+      setEditSubtasks([...(task.subtasks || [])]);
+      setNewSubtaskTitle('');
+      setNewSubtaskAssignee(task.assignees[0] || 'Thampapon');
       setShowDeleteConfirm(false);
     }
   }, [task, initialTab, isOpen]);
+
+  const handleToggleModalSubtask = (subId: string) => {
+    const updated = editSubtasks.map((st) =>
+      st.id === subId ? { ...st, completed: !st.completed } : st
+    );
+    setEditSubtasks(updated);
+    const doneCount = updated.filter((s) => s.completed).length;
+    const computedProgress =
+      updated.length > 0 ? Math.round((doneCount / updated.length) * 100) : progress;
+    setProgress(computedProgress);
+    if (computedProgress === 100) {
+      setStatus('completed');
+    }
+  };
+
+  const handleDeleteModalSubtask = (subId: string) => {
+    const updated = editSubtasks.filter((st) => st.id !== subId);
+    setEditSubtasks(updated);
+  };
+
+  const handleAddModalSubtask = () => {
+    const trimmed = newSubtaskTitle.trim();
+    if (!trimmed) return;
+    setEditSubtasks([
+      ...editSubtasks,
+      {
+        id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: trimmed,
+        assignee: newSubtaskAssignee || 'Thampapon',
+        completed: false,
+        group: editSubTopic.trim() || undefined,
+      },
+    ]);
+    setNewSubtaskTitle('');
+  };
 
   const finalAuthor = customAuthor.trim() || authorName;
 
@@ -185,6 +231,7 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       ...task,
       status: isNowCompleted ? 'completed' : status,
       progress: isNowCompleted ? 100 : progress,
+      subtasks: editSubtasks.length > 0 ? editSubtasks : task.subtasks,
       logs: updatedLogs,
       attachments: updatedAttachments,
       updatedAt: new Date().toISOString(),
@@ -261,10 +308,23 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
       return l;
     });
 
+    const finalSubtasks = editSubtasks.map((st) => ({
+      ...st,
+      group: editSubTopic.trim() || undefined,
+    }));
+    const doneCount = finalSubtasks.filter((s) => s.completed).length;
+    const computedProgress =
+      finalSubtasks.length > 0
+        ? Math.round((doneCount / finalSubtasks.length) * 100)
+        : task.progress;
+
     const updatedTask: Task = {
       ...task,
       title: editTitle.trim(),
       module: finalModule,
+      subTopic: editSubTopic.trim() || undefined,
+      subtasks: finalSubtasks,
+      progress: computedProgress,
       assignees: finalAssignees,
       startDate: editStartDate,
       deadlineDate: editDeadlineDate,
@@ -439,6 +499,52 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Subtasks checklist in Tab 1 */}
+            {editSubtasks.length > 0 && (
+              <div className="space-y-1.5 p-3 bg-indigo-50/40 rounded-2xl border border-indigo-100">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span className="flex items-center gap-1.5">
+                    <ListTree className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>
+                      {editSubTopic ? `${editSubTopic} - ` : ''}รายการงานย่อย:
+                    </span>
+                  </span>
+                  <span className="text-indigo-600 font-bold text-[11px]">
+                    {editSubtasks.filter((s) => s.completed).length}/{editSubtasks.length} สำเร็จ ({progress}%)
+                  </span>
+                </div>
+                <div className="space-y-1 pt-1">
+                  {editSubtasks.map((st) => (
+                    <label
+                      key={st.id}
+                      className={`flex items-center justify-between gap-2 p-1.5 px-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${
+                        st.completed
+                          ? 'bg-emerald-50/40 border-emerald-100 text-slate-400'
+                          : 'bg-white border-slate-200 text-slate-800 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <input
+                          type="checkbox"
+                          checked={st.completed}
+                          onChange={() => handleToggleModalSubtask(st.id)}
+                          className="w-3.5 h-3.5 rounded text-emerald-600 accent-emerald-600 cursor-pointer"
+                        />
+                        <span className={st.completed ? 'line-through' : 'font-medium'}>
+                          {st.title}
+                        </span>
+                      </div>
+                      {st.assignee && (
+                        <span className="text-[10px] text-slate-500 font-semibold bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
+                          {st.assignee}
+                        </span>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* 4. Log Date Selector (supports backdating / retroactive logging) */}
             <div className="space-y-1.5">
@@ -861,7 +967,131 @@ export const QuickUpdateModal: React.FC<QuickUpdateModalProps> = ({
               </div>
             </div>
 
-            {/* 6. Task Detail / Description */}
+            {/* 6. Sub-topic & Subtasks (หัวข้อย่อย & งานย่อย) */}
+            <div className="space-y-2.5 p-3.5 bg-indigo-50/40 rounded-2xl border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <ListTree className="w-3.5 h-3.5 text-indigo-600" />
+                  หัวข้อย่อย & งานย่อย (Sub-topic & Subtasks)
+                </label>
+                {editSubtasks.length > 0 && (
+                  <span className="text-[11px] font-bold text-indigo-700 bg-indigo-100/70 px-2 py-0.5 rounded-full border border-indigo-200">
+                    เสร็จแล้ว {editSubtasks.filter((s) => s.completed).length}/{editSubtasks.length} รายการ
+                  </span>
+                )}
+              </div>
+
+              {/* Sub-topic input */}
+              <div className="space-y-1">
+                <span className="text-[11px] text-slate-500 font-semibold block">
+                  หัวข้อย่อย (Sub-topic)
+                </span>
+                <input
+                  type="text"
+                  value={editSubTopic}
+                  onChange={(e) => setEditSubTopic(e.target.value)}
+                  placeholder="เช่น ACS Product, เอกสารสัญญา, ระบบ API..."
+                  className="w-full px-3.5 py-2 bg-white border border-indigo-200/80 rounded-xl text-indigo-950 font-bold text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+
+              {/* Subtasks checklist */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] text-slate-500 font-semibold block">
+                  รายการงานย่อย (คลิกติ๊กถูกเพื่อเปลี่ยนสถานะเสร็จ):
+                </span>
+                {editSubtasks.length > 0 ? (
+                  editSubtasks.map((st) => (
+                    <div
+                      key={st.id}
+                      className={`flex items-center justify-between gap-2 p-2 px-2.5 rounded-xl border text-xs transition-colors ${
+                        st.completed
+                          ? 'bg-emerald-50/40 border-emerald-100 text-slate-400'
+                          : 'bg-white border-slate-200 text-slate-800'
+                      }`}
+                    >
+                      <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={st.completed}
+                          onChange={() => handleToggleModalSubtask(st.id)}
+                          className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600"
+                        />
+                        <span
+                          className={`truncate font-medium ${
+                            st.completed ? 'line-through text-slate-400' : 'text-slate-800'
+                          }`}
+                        >
+                          {st.title}
+                        </span>
+                      </label>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        {st.assignee && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
+                            <User className="w-2.5 h-2.5 text-slate-400" />
+                            {st.assignee}
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteModalSubtask(st.id)}
+                          className="text-slate-400 hover:text-rose-600 p-1 rounded-lg hover:bg-rose-50 cursor-pointer transition-colors"
+                          title="ลบงานย่อยนี้"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-2 text-xs text-slate-400 italic bg-white rounded-xl border border-dashed border-slate-200">
+                    ยังไม่มีงานย่อยในหัวข้อนี้
+                  </div>
+                )}
+              </div>
+
+              {/* Add subtask input */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                <input
+                  type="text"
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddModalSubtask();
+                    }
+                  }}
+                  placeholder="+ เพิ่มงานย่อยใหม่ (เช่น ตั้งชื่อ Product, Sale kit)..."
+                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 placeholder:text-slate-400"
+                />
+
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={newSubtaskAssignee}
+                    onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                    className="px-2 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {Array.from(new Set(['Thampapon', 'Arthit', 'Muk', ...availableUsers])).map((u) => (
+                      <option key={u} value={u}>
+                        ผู้ดูแล: {u}
+                      </option>
+                    ))}
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={handleAddModalSubtask}
+                    className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shrink-0 shadow-xs cursor-pointer"
+                  >
+                    + เพิ่ม
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 7. Task Detail / Description */}
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-700 block">รายละเอียดงาน (Description)</label>
               <textarea

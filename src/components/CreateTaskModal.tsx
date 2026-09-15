@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Task, TaskStatus, ModuleCategory } from '../types';
 import { getTimestampFromDateString } from '../utils/dateUtils';
-import { X, Plus, Calendar, User, Layers, Sparkles, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Plus, Calendar, User, Layers, Sparkles, Clock, CheckCircle2, ListTree, Trash2 } from 'lucide-react';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -21,6 +21,14 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   if (!isOpen) return null;
 
   const [title, setTitle] = useState('');
+  const [subTopic, setSubTopic] = useState('');
+  const [subtasks, setSubtasks] = useState<
+    { id: string; title: string; assignee: string; completed: boolean }[]
+  >([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState(
+    availableUsers[0] || 'Thampapon'
+  );
   const [assigneeInput, setAssigneeInput] = useState('');
   const [assigneesList, setAssigneesList] = useState<string[]>([]);
   const [module, setModule] = useState(modules[0]?.name || 'งานทั่วไป');
@@ -28,6 +36,25 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
   const [deadlineDate, setDeadlineDate] = useState('');
   const [deadlineText, setDeadlineText] = useState('');
   const [detail, setDetail] = useState('');
+
+  const handleAddSubtask = () => {
+    const trimmed = newSubtaskTitle.trim();
+    if (!trimmed) return;
+    setSubtasks([
+      ...subtasks,
+      {
+        id: `sub-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title: trimmed,
+        assignee: newSubtaskAssignee || 'Thampapon',
+        completed: false,
+      },
+    ]);
+    setNewSubtaskTitle('');
+  };
+
+  const handleRemoveSubtask = (id: string) => {
+    setSubtasks(subtasks.filter((s) => s.id !== id));
+  };
 
   const handleAddAssignee = (nameToAdd: string) => {
     const clean = nameToAdd.trim();
@@ -75,11 +102,17 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
     const creationTimestamp = getTimestampFromDateString(finalStartDate);
     const newTaskId = `task-${Date.now()}`;
 
+    const finalSubtasks = subtasks.map((st) => ({
+      ...st,
+      group: subTopic.trim() || undefined,
+    }));
+
     const newTask: Task = {
       id: newTaskId,
       code: `TSK-${Math.floor(100 + Math.random() * 900)}`,
       module: module.trim() || 'งานทั่วไป',
       title: title.trim(),
+      subTopic: subTopic.trim() || undefined,
       detail: detail.trim(),
       assignees: finalAssignees,
       status: 'in_progress' as TaskStatus,
@@ -88,7 +121,7 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
       startDate: finalStartDate,
       deadlineDate: finalDeadlineDate,
       deadlineText: deadlineText.trim() || undefined,
-      subtasks: [],
+      subtasks: finalSubtasks,
       logs: [
         {
           id: `log-${Date.now()}`,
@@ -96,7 +129,9 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
           author: finalAssignees[0] || 'ผู้ดูแล',
           timestamp: creationTimestamp,
           actionType: 'created',
-          content: `สร้างงาน "${title.trim()}" ผู้ดูแล: ${finalAssignees.join(', ')}`,
+          content: `สร้างงาน "${title.trim()}" ${
+            subTopic.trim() ? `[หัวข้อย่อย: ${subTopic.trim()}] ` : ''
+          }ผู้ดูแล: ${finalAssignees.join(', ')}`,
         },
       ],
       createdAt: creationTimestamp,
@@ -269,6 +304,93 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 placeholder="ข้อความระบุ Deadline พิเศษ (เช่น สิ้นเดือน, รอสัญญา, 25 ส.ค.)..."
                 className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs mt-1"
               />
+            </div>
+          </div>
+
+          {/* 4. หัวข้อย่อย & งานย่อย (Sub-topic & Subtasks) */}
+          <div className="space-y-2 p-3.5 bg-indigo-50/40 rounded-xl border border-indigo-100">
+            <label className="font-bold text-slate-700 block text-xs flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <ListTree className="w-3.5 h-3.5 text-indigo-600" />
+                หัวข้อย่อย & งานย่อย (Sub-topic & Subtasks)
+              </span>
+              <span className="text-[10px] text-slate-400 font-normal">ถ้ามี</span>
+            </label>
+
+            {/* Input หัวข้อย่อย */}
+            <input
+              type="text"
+              value={subTopic}
+              onChange={(e) => setSubTopic(e.target.value)}
+              placeholder="หัวข้อย่อย (เช่น ACS Product, เฟส 1, เอกสารเสนอราคา)..."
+              className="w-full px-3 py-2 bg-white border border-indigo-200/80 rounded-xl text-xs font-semibold text-indigo-950 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+
+            {/* Subtasks List */}
+            {subtasks.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                {subtasks.map((st) => (
+                  <div
+                    key={st.id}
+                    className="flex items-center justify-between gap-2 p-2 px-2.5 bg-white rounded-lg border border-slate-200 text-xs"
+                  >
+                    <span className="font-medium text-slate-800 truncate flex-1">
+                      • {st.title}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
+                      <User className="w-2.5 h-2.5 text-slate-400" />
+                      {st.assignee}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveSubtask(st.id)}
+                      className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
+                      title="ลบงานย่อยนี้"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Input to add subtask */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={newSubtaskTitle}
+                onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddSubtask();
+                  }
+                }}
+                placeholder="+ งานย่อย (เช่น จัดทำ Sale kit, คำนวณราคา)..."
+                className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+              />
+
+              <div className="flex items-center gap-1.5">
+                <select
+                  value={newSubtaskAssignee}
+                  onChange={(e) => setNewSubtaskAssignee(e.target.value)}
+                  className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                >
+                  {Array.from(new Set(['Thampapon', 'Arthit', 'Muk', ...availableUsers])).map((u) => (
+                    <option key={u} value={u}>
+                      ผู้ดูแล: {u}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  type="button"
+                  onClick={handleAddSubtask}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shrink-0 shadow-xs cursor-pointer"
+                >
+                  + เพิ่ม
+                </button>
+              </div>
             </div>
           </div>
 

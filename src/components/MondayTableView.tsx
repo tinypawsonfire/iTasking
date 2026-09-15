@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { Task, TaskStatus, ModuleCategory, Priority } from '../types';
 import { formatThaiDate, isTaskOverdue, getDeadlineAlertInfo } from '../utils/dateUtils';
 import {
@@ -22,8 +22,11 @@ import {
   ExternalLink,
   Milestone,
   Route,
+  Trash2,
+  ListTree,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import type { ActivityLog } from '../types';
 
 interface MondayTableViewProps {
   tasks: Task[];
@@ -32,6 +35,8 @@ interface MondayTableViewProps {
   onQuickStatusChange: (taskId: string, newStatus: TaskStatus) => void;
   onAddTask: (newTask: Task) => void;
   onOpenInfographic?: (task: Task) => void;
+  onUpdateTask?: (updatedTask: Task) => void;
+  availableUsers?: string[];
 }
 
 export const MONDAY_STATUSES: {
@@ -98,10 +103,127 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
   onQuickStatusChange,
   onAddTask,
   onOpenInfographic,
+  onUpdateTask,
+  availableUsers = [],
 }) => {
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [inlineNewTaskName, setInlineNewTaskName] = useState<Record<string, string>>({});
   const [activeStatusPickerTaskId, setActiveStatusPickerTaskId] = useState<string | null>(null);
+
+  // Subtasks & Sub-topic states
+  const [expandedSubtaskTaskIds, setExpandedSubtaskTaskIds] = useState<Record<string, boolean>>({});
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState<Record<string, string>>({});
+  const [newSubtaskAssignee, setNewSubtaskAssignee] = useState<Record<string, string>>({});
+  const [editingSubTopic, setEditingSubTopic] = useState<Record<string, string>>({});
+
+  const teamUsersList = useMemo(() => {
+    const set = new Set<string>(['Thampapon', 'Arthit', 'Muk']);
+    if (availableUsers) availableUsers.forEach((u) => set.add(u));
+    tasks.forEach((t) => {
+      t.assignees.forEach((a) => {
+        if (a && a !== 'ยังไม่ระบุ') set.add(a);
+      });
+      t.subtasks?.forEach((st) => {
+        if (st.assignee && st.assignee !== 'ยังไม่ระบุ') set.add(st.assignee);
+      });
+    });
+    return Array.from(set).filter(Boolean);
+  }, [availableUsers, tasks]);
+
+  const toggleSubtasks = (taskId: string) => {
+    setExpandedSubtaskTaskIds((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
+  const handleToggleSubtask = (task: Task, subtaskId: string) => {
+    if (!onUpdateTask) return;
+    const updatedSubtasks = (task.subtasks || []).map((st) =>
+      st.id === subtaskId ? { ...st, completed: !st.completed } : st
+    );
+    const completedCount = updatedSubtasks.filter((st) => st.completed).length;
+    const progress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : task.progress;
+    const toggled = updatedSubtasks.find((st) => st.id === subtaskId);
+
+    const logItem: ActivityLog = {
+      id: `log-${Date.now()}`,
+      taskId: task.id,
+      author: toggled?.assignee || task.assignees[0] || 'ผู้ใช้',
+      timestamp: new Date().toISOString(),
+      actionType: 'progress_update',
+      content: `${toggled?.completed ? '✅ ทำเสร็จแล้ว' : '🔄 ยกเลิกเสร็จ'}: ${toggled?.title}`,
+      progressPercent: progress,
+    };
+
+    const updatedTask: Task = {
+      ...task,
+      subtasks: updatedSubtasks,
+      progress,
+      logs: [logItem, ...(task.logs || [])],
+      updatedAt: new Date().toISOString(),
+    };
+
+    onUpdateTask(updatedTask);
+    if (progress === 100 && updatedSubtasks.length > 0) {
+      confetti({ particleCount: 70, spread: 60, origin: { y: 0.6 } });
+    }
+  };
+
+  const handleAddSubtask = (task: Task) => {
+    if (!onUpdateTask) return;
+    const title = newSubtaskTitle[task.id]?.trim();
+    if (!title) return;
+    const assignee = newSubtaskAssignee[task.id] || task.assignees[0] || 'Thampapon';
+    const subTopicName = editingSubTopic[task.id] !== undefined ? editingSubTopic[task.id].trim() : (task.subTopic || '');
+
+    const newSubItem = {
+      id: `sub-${Date.now()}`,
+      title,
+      completed: false,
+      assignee,
+      group: subTopicName || undefined,
+    };
+
+    const updatedSubtasks = [...(task.subtasks || []), newSubItem];
+    const completedCount = updatedSubtasks.filter((st) => st.completed).length;
+    const progress = Math.round((completedCount / updatedSubtasks.length) * 100);
+
+    const updatedTask: Task = {
+      ...task,
+      subTopic: subTopicName || task.subTopic,
+      subtasks: updatedSubtasks,
+      progress,
+      updatedAt: new Date().toISOString(),
+    };
+
+    onUpdateTask(updatedTask);
+    setNewSubtaskTitle((prev) => ({ ...prev, [task.id]: '' }));
+  };
+
+  const handleDeleteSubtask = (task: Task, subtaskId: string) => {
+    if (!onUpdateTask) return;
+    const updatedSubtasks = (task.subtasks || []).filter((st) => st.id !== subtaskId);
+    const completedCount = updatedSubtasks.filter((st) => st.completed).length;
+    const progress = updatedSubtasks.length > 0 ? Math.round((completedCount / updatedSubtasks.length) * 100) : 0;
+
+    const updatedTask: Task = {
+      ...task,
+      subtasks: updatedSubtasks,
+      progress,
+      updatedAt: new Date().toISOString(),
+    };
+    onUpdateTask(updatedTask);
+  };
+
+  const handleSaveSubTopic = (task: Task) => {
+    if (!onUpdateTask) return;
+    const subTopicVal = editingSubTopic[task.id];
+    if (subTopicVal === undefined) return;
+    const updatedTask: Task = {
+      ...task,
+      subTopic: subTopicVal.trim() || undefined,
+      updatedAt: new Date().toISOString(),
+    };
+    onUpdateTask(updatedTask);
+  };
 
   const toggleGroup = (groupName: string) => {
     setCollapsedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
@@ -248,175 +370,376 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
                       const alertInfo = getDeadlineAlertInfo(task.deadlineDate, task.status);
                       const isPickerOpen = activeStatusPickerTaskId === task.id;
                       const hasAttachments = task.attachments && task.attachments.length > 0;
+                      const isSubtasksExpanded = !!expandedSubtaskTaskIds[task.id];
+                      const totalSub = task.subtasks?.length || 0;
+                      const doneSub = task.subtasks?.filter((s) => s.completed).length || 0;
 
                       return (
-                        <tr
-                          key={task.id}
-                          className="hover:bg-slate-50/80 transition-all duration-150 group relative"
-                          style={{ borderLeft: `6px solid ${groupColor}` }}
-                        >
-                          {/* Row Index */}
-                          <td className="py-3.5 px-3 text-center text-slate-400 font-mono text-[11px] group-hover:text-slate-700">
-                            {idx + 1}
-                          </td>
-
-                          {/* Task Name & Chat Bubble */}
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center justify-between gap-2.5">
-                              <div className="space-y-0.5 min-w-0">
-                                <span
-                                  onClick={() => onOpenUpdate(task, 'edit')}
-                                  className="font-bold text-slate-900 hover:text-[#0073ea] transition-colors cursor-pointer text-xs sm:text-sm block truncate"
-                                  title="คลิกเพื่อแก้ไขข้อมูลงาน & หมวดหมู่"
-                                >
-                                  {task.title}
-                                </span>
-                                {task.detail && (
-                                  <p className="text-[11px] text-slate-400 truncate max-w-sm">
-                                    {task.detail}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                {hasAttachments && (
-                                  <span className="p-1 text-slate-400 hover:text-indigo-600 rounded" title="มีไฟล์แนบ">
-                                    <Paperclip className="w-3.5 h-3.5" />
-                                  </span>
-                                )}
-
-                                {/* Infographic Timeline Button */}
+                        <React.Fragment key={task.id}>
+                          <tr
+                            className={`hover:bg-slate-50/80 transition-all duration-150 group relative ${
+                              isSubtasksExpanded ? 'bg-indigo-50/20' : ''
+                            }`}
+                            style={{ borderLeft: `6px solid ${groupColor}` }}
+                          >
+                            {/* Row Index & Subtask Toggle */}
+                            <td className="py-3 px-2 text-center text-slate-400 font-mono text-[11px] group-hover:text-slate-700">
+                              <div className="flex items-center justify-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
-                                  className="px-2 py-1 rounded-xl bg-blue-50/90 hover:bg-[#0073ea] text-[#0073ea] hover:text-white border border-blue-200/90 hover:border-[#0073ea] text-[11px] font-bold flex items-center gap-1 transition-all shadow-2xs cursor-pointer group/infobtn"
-                                  title="คลิกดูไทม์ไลน์ Infographic ขั้นตอน & อัปเดต"
-                                >
-                                  <Route className="w-3.5 h-3.5 text-[#0073ea] group-hover/infobtn:text-white" />
-                                  <span className="hidden sm:inline">Infographic</span>
-                                </button>
-
-                                {/* Monday Chat Bubble Icon */}
-                                <button
-                                  onClick={() => onOpenUpdate(task, 'log')}
-                                  className={`p-1.5 rounded-xl flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
-                                    task.logs && task.logs.length > 0
-                                      ? 'bg-indigo-50 text-[#0073ea] border border-blue-200 hover:bg-blue-100'
-                                      : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100 opacity-0 group-hover:opacity-100'
+                                  onClick={() => toggleSubtasks(task.id)}
+                                  className={`p-1 rounded-md transition-all ${
+                                    isSubtasksExpanded
+                                      ? 'bg-indigo-100 text-indigo-700'
+                                      : totalSub > 0 || task.subTopic
+                                      ? 'text-indigo-600 hover:bg-indigo-50 font-bold'
+                                      : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100'
                                   }`}
-                                  title="เปิดบันทึกความคืบหน้า"
+                                  title={isSubtasksExpanded ? 'ย่อรายการงานย่อย' : 'ขยายดูหัวข้อย่อยและงานย่อย'}
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                  {task.logs && task.logs.length > 0 && (
-                                    <span className="text-[10px] font-black">{task.logs.length}</span>
+                                  {isSubtasksExpanded ? (
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  ) : (
+                                    <ChevronRight className="w-3.5 h-3.5" />
                                   )}
                                 </button>
+                                <span>{idx + 1}</span>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Owner Bubble Avatar */}
-                          <td className="py-3 px-3 text-center">
-                            <div
-                              onClick={() => onOpenUpdate(task)}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors max-w-[140px] border border-slate-200/60 shadow-2xs"
-                            >
-                              <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
-                                {task.assignees[0]?.slice(0, 1) || 'U'}
-                              </div>
-                              <span className="text-[11px] font-bold truncate">
-                                {task.assignees[0] || 'ยังไม่ระบุ'}
-                              </span>
-                            </div>
-                          </td>
+                            {/* Task Name & Badges & Chat Bubble */}
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center justify-between gap-2.5">
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span
+                                      onClick={() => onOpenUpdate(task, 'edit')}
+                                      className="font-bold text-slate-900 hover:text-[#0073ea] transition-colors cursor-pointer text-xs sm:text-sm truncate"
+                                      title="คลิกเพื่อแก้ไขข้อมูลงาน & หมวดหมู่"
+                                    >
+                                      {task.title}
+                                    </span>
+                                  </div>
 
-                          {/* Signature Monday.com Status Cell */}
-                          <td className="py-2.5 px-3 text-center relative">
-                            <button
-                              onClick={() =>
-                                setActiveStatusPickerTaskId(isPickerOpen ? null : task.id)
-                              }
-                              className={`w-full py-2.5 px-3 rounded-xl font-extrabold text-xs transition-all duration-200 shadow-sm hover:brightness-105 flex items-center justify-center gap-1.5 ${statusConfig.bg} ${statusConfig.text}`}
-                            >
-                              {task.status === 'completed' && <Check className="w-3.5 h-3.5 shrink-0" />}
-                              {task.status === 'in_progress' && (
-                                <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0"></span>
-                              )}
-                              <span className="truncate">{statusConfig.label}</span>
-                            </button>
+                                  {/* SubTopic & Subtask indicators */}
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    {task.subTopic && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleSubtasks(task.id)}
+                                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 transition-colors shadow-2xs"
+                                        title="หัวข้อย่อย - คลิกเพื่อดูงานย่อย"
+                                      >
+                                        <ListTree className="w-3 h-3 text-indigo-600" />
+                                        <span>{task.subTopic}</span>
+                                      </button>
+                                    )}
 
-                            {/* Status Picker Popover Palette */}
-                            {isPickerOpen && (
-                              <div
-                                className="absolute left-1/2 -translate-x-1/2 top-13 w-52 glass-dropdown rounded-2xl p-2.5 z-50 space-y-1.5 animate-fadeIn"
-                                onMouseLeave={() => setActiveStatusPickerTaskId(null)}
-                              >
-                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1">
-                                  เปลี่ยนสถานะ
+                                    {totalSub > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleSubtasks(task.id)}
+                                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold transition-colors"
+                                        title="จำนวนงานย่อยที่เสร็จ"
+                                      >
+                                        <Check className="w-2.5 h-2.5 text-emerald-600" />
+                                        <span>{doneSub}/{totalSub} งานย่อย</span>
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  {task.detail && (
+                                    <p className="text-[11px] text-slate-400 truncate max-w-sm">
+                                      {task.detail}
+                                    </p>
+                                  )}
                                 </div>
-                                {MONDAY_STATUSES.map((st) => (
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  {hasAttachments && (
+                                    <span className="p-1 text-slate-400 hover:text-indigo-600 rounded" title="มีไฟล์แนบ">
+                                      <Paperclip className="w-3.5 h-3.5" />
+                                    </span>
+                                  )}
+
+                                  {/* Infographic Timeline Button */}
                                   <button
-                                    key={st.id}
-                                    onClick={() => {
-                                      onQuickStatusChange(task.id, st.id);
-                                      setActiveStatusPickerTaskId(null);
-                                      if (st.id === 'completed') {
-                                        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-                                      }
-                                    }}
-                                    className={`w-full py-2 px-3 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-between shadow-2xs ${st.bg}`}
+                                    type="button"
+                                    onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+                                    className="px-2 py-1 rounded-xl bg-blue-50/90 hover:bg-[#0073ea] text-[#0073ea] hover:text-white border border-blue-200/90 hover:border-[#0073ea] text-[11px] font-bold flex items-center gap-1 transition-all shadow-2xs cursor-pointer group/infobtn"
+                                    title="คลิกดูไทม์ไลน์ Infographic ขั้นตอน & อัปเดต"
                                   >
-                                    <span>{st.label}</span>
-                                    {task.status === st.id && <Check className="w-4 h-4" />}
+                                    <Route className="w-3.5 h-3.5 text-[#0073ea] group-hover/infobtn:text-white" />
+                                    <span className="hidden sm:inline">Infographic</span>
                                   </button>
-                                ))}
-                              </div>
-                            )}
-                          </td>
 
-                          {/* Capsule Timeline Bar */}
-                          <td className="py-3 px-3 text-center">
-                            <div
-                              onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
-                              className="w-full py-1.5 px-3 rounded-full bg-slate-100 hover:bg-blue-50/90 border border-slate-200 hover:border-blue-400 text-[11px] font-semibold text-slate-700 flex items-center justify-between cursor-pointer transition-all shadow-2xs group/timeline"
-                              title={`คลิกเพื่อดูไทม์ไลน์ Infographic: เริ่ม ${formatThaiDate(task.startDate)} ➔ ส่ง ${task.deadlineText || formatThaiDate(task.deadlineDate)}`}
-                            >
-                              <span className="text-[10px] text-slate-400 font-mono">
-                                {task.startDate ? task.startDate.slice(5) : ''}
-                              </span>
-                              <span className="font-bold text-slate-800 truncate px-1 group-hover/timeline:text-[#0073ea]">
-                                {task.deadlineText || formatThaiDate(task.deadlineDate)}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                {alertInfo.urgency === 'overdue' ? (
-                                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="เกินกำหนด!"></span>
-                                ) : (
-                                  <Milestone className="w-3.5 h-3.5 text-slate-400 group-hover/timeline:text-[#0073ea]" />
+                                  {/* Monday Chat Bubble Icon */}
+                                  <button
+                                    onClick={() => onOpenUpdate(task, 'log')}
+                                    className={`p-1.5 rounded-xl flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
+                                      task.logs && task.logs.length > 0
+                                        ? 'bg-indigo-50 text-[#0073ea] border border-blue-200 hover:bg-blue-100'
+                                        : 'text-slate-300 hover:text-slate-600 hover:bg-slate-100 opacity-0 group-hover:opacity-100'
+                                    }`}
+                                    title="เปิดบันทึกความคืบหน้า"
+                                  >
+                                    <MessageSquare className="w-3.5 h-3.5" />
+                                    {task.logs && task.logs.length > 0 && (
+                                      <span className="text-[10px] font-black">{task.logs.length}</span>
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Owner Bubble Avatar */}
+                            <td className="py-3 px-3 text-center">
+                              <div
+                                onClick={() => onOpenUpdate(task)}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-700 cursor-pointer transition-colors max-w-[140px] border border-slate-200/60 shadow-2xs"
+                              >
+                                <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-600 to-blue-500 text-white text-[10px] font-bold flex items-center justify-center shrink-0">
+                                  {task.assignees[0]?.slice(0, 1) || 'U'}
+                                </div>
+                                <span className="text-[11px] font-bold truncate">
+                                  {task.assignees[0] || 'ยังไม่ระบุ'}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Signature Monday.com Status Cell */}
+                            <td className="py-2.5 px-3 text-center relative">
+                              <button
+                                onClick={() =>
+                                  setActiveStatusPickerTaskId(isPickerOpen ? null : task.id)
+                                }
+                                className={`w-full py-2.5 px-3 rounded-xl font-extrabold text-xs transition-all duration-200 shadow-sm hover:brightness-105 flex items-center justify-center gap-1.5 ${statusConfig.bg} ${statusConfig.text}`}
+                              >
+                                {task.status === 'completed' && <Check className="w-3.5 h-3.5 shrink-0" />}
+                                {task.status === 'in_progress' && (
+                                  <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0"></span>
                                 )}
+                                <span className="truncate">{statusConfig.label}</span>
+                              </button>
+
+                              {/* Status Picker Popover Palette */}
+                              {isPickerOpen && (
+                                <div
+                                  className="absolute left-1/2 -translate-x-1/2 top-13 w-52 glass-dropdown rounded-2xl p-2.5 z-50 space-y-1.5 animate-fadeIn"
+                                  onMouseLeave={() => setActiveStatusPickerTaskId(null)}
+                                >
+                                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pb-1">
+                                    เปลี่ยนสถานะ
+                                  </div>
+                                  {MONDAY_STATUSES.map((st) => (
+                                    <button
+                                      key={st.id}
+                                      onClick={() => {
+                                        onQuickStatusChange(task.id, st.id);
+                                        setActiveStatusPickerTaskId(null);
+                                        if (st.id === 'completed') {
+                                          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+                                        }
+                                      }}
+                                      className={`w-full py-2 px-3 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.02] flex items-center justify-between shadow-2xs ${st.bg}`}
+                                    >
+                                      <span>{st.label}</span>
+                                      {task.status === st.id && <Check className="w-4 h-4" />}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+
+                            {/* Capsule Timeline Bar */}
+                            <td className="py-3 px-3 text-center">
+                              <div
+                                onClick={() => (onOpenInfographic ? onOpenInfographic(task) : onOpenUpdate(task))}
+                                className="w-full py-1.5 px-3 rounded-full bg-slate-100 hover:bg-blue-50/90 border border-slate-200 hover:border-blue-400 text-[11px] font-semibold text-slate-700 flex items-center justify-between cursor-pointer transition-all shadow-2xs group/timeline"
+                                title={`คลิกเพื่อดูไทม์ไลน์ Infographic: เริ่ม ${formatThaiDate(task.startDate)} ➔ ส่ง ${task.deadlineText || formatThaiDate(task.deadlineDate)}`}
+                              >
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  {task.startDate ? task.startDate.slice(5) : ''}
+                                </span>
+                                <span className="font-bold text-slate-800 truncate px-1 group-hover/timeline:text-[#0073ea]">
+                                  {task.deadlineText || formatThaiDate(task.deadlineDate)}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {alertInfo.urgency === 'overdue' ? (
+                                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" title="เกินกำหนด!"></span>
+                                  ) : (
+                                    <Milestone className="w-3.5 h-3.5 text-slate-400 group-hover/timeline:text-[#0073ea]" />
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </td>
+                            </td>
 
-                          {/* Priority Pill */}
-                          <td className="py-3 px-3 text-center">
-                            <span
-                              className={`inline-block w-full py-1.5 px-2 rounded-xl text-[11px] font-bold shadow-2xs ${priorityConfig.bg} ${priorityConfig.text}`}
-                            >
-                              {priorityConfig.label}
-                            </span>
-                          </td>
+                            {/* Priority Pill */}
+                            <td className="py-3 px-3 text-center">
+                              <span
+                                className={`inline-block w-full py-1.5 px-2 rounded-xl text-[11px] font-bold shadow-2xs ${priorityConfig.bg} ${priorityConfig.text}`}
+                              >
+                                {priorityConfig.label}
+                              </span>
+                            </td>
 
-                          {/* Update Count */}
-                          <td className="py-3 px-3 text-center">
-                            <button
-                              onClick={() => onOpenUpdate(task)}
-                              className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                              title="เปิดบันทึกอัปเดตงาน (Update)"
+                            {/* Update Count */}
+                            <td className="py-3 px-3 text-center">
+                              <button
+                                onClick={() => onOpenUpdate(task)}
+                                className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white border border-emerald-200/80 rounded-lg text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                                title="เปิดบันทึกอัปเดตงาน (Update)"
+                              >
+                                {task.logs?.length || 0}
+                              </button>
+                            </td>
+                          </tr>
+
+                          {/* Expandable Sub-items nested row */}
+                          {isSubtasksExpanded && (
+                            <tr
+                              className="bg-slate-50/70 border-b border-indigo-100 animate-fadeIn"
+                              style={{ borderLeft: `6px solid ${groupColor}` }}
                             >
-                              {task.logs?.length || 0}
-                            </button>
-                          </td>
-                        </tr>
+                              <td colSpan={7} className="py-3 px-4 sm:px-8">
+                                <div className="bg-white rounded-2xl border border-indigo-100 shadow-sm p-4 space-y-3">
+                                  {/* Sub-topic Header */}
+                                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                                        <ListTree className="w-3.5 h-3.5" />
+                                      </div>
+                                      <span className="text-xs font-bold text-slate-500">หัวข้อย่อย:</span>
+                                      <input
+                                        type="text"
+                                        value={
+                                          editingSubTopic[task.id] !== undefined
+                                            ? editingSubTopic[task.id]
+                                            : task.subTopic || ''
+                                        }
+                                        onChange={(e) =>
+                                          setEditingSubTopic((prev) => ({ ...prev, [task.id]: e.target.value }))
+                                        }
+                                        onBlur={() => handleSaveSubTopic(task)}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') handleSaveSubTopic(task);
+                                        }}
+                                        placeholder="พิมพ์หัวข้อย่อย (เช่น ACS Product)..."
+                                        className="text-xs font-black text-indigo-900 bg-indigo-50/70 hover:bg-indigo-50 focus:bg-white border border-indigo-200/70 focus:border-indigo-500 px-2.5 py-1 rounded-lg outline-none transition-all w-48 sm:w-64"
+                                      />
+                                    </div>
+                                    <div className="text-xs text-slate-500 font-semibold flex items-center gap-2">
+                                      <span>
+                                        งานย่อยเสร็จแล้ว:{' '}
+                                        <strong className="text-indigo-600 font-black">{doneSub}</strong>/{totalSub} รายการ
+                                      </span>
+                                      <span className="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold text-[10px] border border-indigo-200">
+                                        {totalSub > 0 ? Math.round((doneSub / totalSub) * 100) : task.progress}%
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Subtask checklist */}
+                                  <div className="space-y-1.5">
+                                    {task.subtasks && task.subtasks.length > 0 ? (
+                                      task.subtasks.map((st) => (
+                                        <div
+                                          key={st.id}
+                                          className={`flex items-center justify-between gap-2.5 p-2 px-3 rounded-xl border transition-all group/sub ${
+                                            st.completed
+                                              ? 'bg-emerald-50/30 border-emerald-100 text-slate-400'
+                                              : 'bg-white hover:bg-slate-50/80 border-slate-200/70 text-slate-800'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                            <input
+                                              type="checkbox"
+                                              checked={st.completed}
+                                              onChange={() => handleToggleSubtask(task, st.id)}
+                                              className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer accent-emerald-600 shrink-0"
+                                            />
+                                            <span
+                                              onClick={() => handleToggleSubtask(task, st.id)}
+                                              className={`text-xs font-medium cursor-pointer truncate ${
+                                                st.completed
+                                                  ? 'line-through text-slate-400 font-normal'
+                                                  : 'text-slate-800 hover:text-indigo-600 font-medium'
+                                              }`}
+                                            >
+                                              {st.title}
+                                            </span>
+                                          </div>
+
+                                          <div className="flex items-center gap-2 shrink-0">
+                                            {st.assignee && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200/80">
+                                                <User className="w-2.5 h-2.5 text-slate-400" />
+                                                <span>ผู้ดูแล: {st.assignee}</span>
+                                              </span>
+                                            )}
+                                            <button
+                                              type="button"
+                                              onClick={() => handleDeleteSubtask(task, st.id)}
+                                              className="p-1 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover/sub:opacity-100 cursor-pointer"
+                                              title="ลบงานย่อยนี้"
+                                            >
+                                              <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))
+                                    ) : (
+                                      <div className="py-3 text-center text-xs text-slate-400 italic bg-slate-50/60 rounded-xl border border-dashed border-slate-200">
+                                        ยังไม่มีงานย่อย สามารถพิมพ์เพิ่มงานย่อยพร้อมเลือกผู้ดูแลได้ที่ช่องด้านล่างนี้
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Inline Add Subtask Input & Assignee Select */}
+                                  <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                                    <input
+                                      type="text"
+                                      value={newSubtaskTitle[task.id] || ''}
+                                      onChange={(e) =>
+                                        setNewSubtaskTitle((prev) => ({ ...prev, [task.id]: e.target.value }))
+                                      }
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') handleAddSubtask(task);
+                                      }}
+                                      placeholder="+ เพิ่มงานย่อย (เช่น คิดราคา / GP)..."
+                                      className="flex-1 px-3 py-2 text-xs bg-slate-50 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl outline-none transition-all placeholder:text-slate-400 font-medium"
+                                    />
+
+                                    <div className="flex items-center gap-2">
+                                      <select
+                                        value={newSubtaskAssignee[task.id] || task.assignees[0] || 'Thampapon'}
+                                        onChange={(e) =>
+                                          setNewSubtaskAssignee((prev) => ({ ...prev, [task.id]: e.target.value }))
+                                        }
+                                        className="px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold text-slate-700 focus:border-indigo-500 cursor-pointer"
+                                      >
+                                        {teamUsersList.map((u) => (
+                                          <option key={u} value={u}>
+                                            ผู้ดูแล: {u}
+                                          </option>
+                                        ))}
+                                      </select>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleAddSubtask(task)}
+                                        className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 flex items-center justify-center gap-1.5 cursor-pointer"
+                                      >
+                                        <Plus className="w-3.5 h-3.5" />
+                                        <span>เพิ่มงานย่อย</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
 
