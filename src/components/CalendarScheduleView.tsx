@@ -113,7 +113,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
             id: `deadline-${task.id}`,
             type: 'deadline',
             task,
-            title: task.title,
+            title: task.subTopic ? `${task.title} (${task.subTopic})` : task.title,
             badgeLabel: '🚩 กำหนดส่งงาน',
             dateStr: dStr,
           });
@@ -129,7 +129,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
             id: `start-${task.id}`,
             type: 'start',
             task,
-            title: `${task.title} (เริ่มงาน)`,
+            title: task.subTopic ? `${task.title} (${task.subTopic}) - เริ่มงาน` : `${task.title} (เริ่มงาน)`,
             badgeLabel: '🚀 วันเริ่มต้นงาน',
             dateStr: sStr,
           });
@@ -152,7 +152,7 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                 id: `log-${log.id}`,
                 type: 'update_log',
                 task,
-                title: log.content,
+                title: `[${task.title}] ${log.content}`,
                 badgeLabel: '📌 บันทึก / กำหนดการ',
                 dateStr: logDateStr,
                 timeStr: formatThaiTime(log.timestamp),
@@ -462,8 +462,15 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                   >
                     {formatThaiDate(item.dateStr).slice(0, -5)}
                   </span>
-                  <span className="truncate max-w-[220px]">
-                    {isUpdateLog ? `📌 ${item.title}` : item.title}
+                  <span className="truncate max-w-[280px]">
+                    <strong className="font-black mr-1.5">[{item.task.title}]</strong>
+                    {isUpdateLog ? (
+                      <span>{item.log?.content || item.title}</span>
+                    ) : item.task.subTopic ? (
+                      <span>({item.task.subTopic})</span>
+                    ) : (
+                      <span>กำหนดส่ง</span>
+                    )}
                   </span>
                 </button>
               );
@@ -551,10 +558,15 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                               onOpenUpdate(item.task, 'log');
                             }}
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] bg-gradient-to-r from-amber-500 to-orange-500 text-white cursor-pointer"
-                            title={`📌 ${item.title} (${item.task.title})`}
+                            title={`📌 [${item.task.title}${item.task.subTopic ? ` - ${item.task.subTopic}` : ''}] ${item.log?.content || item.title}`}
                           >
                             <Pin className="w-2.5 h-2.5 shrink-0" />
-                            <span className="truncate">{item.title}</span>
+                            <span className="truncate">
+                              <strong className="font-black bg-black/25 px-1 py-0.2 rounded mr-1">
+                                {item.task.title}
+                              </strong>
+                              {item.log?.content || item.title}
+                            </span>
                           </div>
                         );
                       }
@@ -569,9 +581,14 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                               onOpenUpdate(item.task);
                             }}
                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] bg-sky-600 text-white cursor-pointer"
-                            title={`🚀 เริ่มงาน: ${item.task.title}`}
+                            title={`🚀 เริ่มงาน: ${item.task.title}${item.task.subTopic ? ` (${item.task.subTopic})` : ''}`}
                           >
-                            <span className="truncate">🚀 {item.task.title}</span>
+                            <span className="truncate">
+                              🚀 <strong className="font-black">{item.task.title}</strong>
+                              {item.task.subTopic && (
+                                <span className="opacity-90 ml-1 font-medium">({item.task.subTopic})</span>
+                              )}
+                            </span>
                           </div>
                         );
                       }
@@ -586,10 +603,15 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                             onOpenUpdate(item.task);
                           }}
                           className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate flex items-center gap-1 transition-all shadow-2xs hover:scale-[1.02] ${colors.bg} ${colors.text} cursor-pointer`}
-                          title={`🚩 กำหนดส่ง: ${item.task.title} (${item.task.module})`}
+                          title={`🚩 กำหนดส่ง: ${item.task.title}${item.task.subTopic ? ` (${item.task.subTopic})` : ''} [${item.task.module}]`}
                         >
                           <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
-                          <span className="truncate">{item.task.title}</span>
+                          <span className="truncate">
+                            <strong className="font-black">{item.task.title}</strong>
+                            {item.task.subTopic && (
+                              <span className="opacity-90 ml-1 font-medium">({item.task.subTopic})</span>
+                            )}
+                          </span>
                         </div>
                       );
                     })}
@@ -641,18 +663,30 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                 >
                   {/* Badge & Type */}
                   <div className="flex items-start justify-between gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => onOpenUpdate(task, 'edit')}
-                      className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-100/70 text-[#0073ea] hover:bg-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
-                      title="คลิกเพื่อแก้ไขหมวดหมู่ / ข้อมูลงาน"
-                    >
-                      <span>{task.module}</span>
-                      <Edit3 className="w-2.5 h-2.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button
+                        type="button"
+                        onClick={() => onOpenUpdate(task, 'edit')}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-100/70 text-[#0073ea] hover:bg-blue-200 transition-colors flex items-center gap-1 cursor-pointer"
+                        title="คลิกเพื่อแก้ไขหมวดหมู่ / ข้อมูลงาน"
+                      >
+                        <span>{task.module}</span>
+                        <Edit3 className="w-2.5 h-2.5" />
+                      </button>
+
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-indigo-600 text-white shadow-2xs">
+                        {task.title}
+                      </span>
+
+                      {task.subTopic && (
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                          {task.subTopic}
+                        </span>
+                      )}
+                    </div>
 
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold shrink-0 ${
                         isUpdateLog
                           ? 'bg-amber-200 text-amber-900 border border-amber-300'
                           : statusStyle.light
@@ -665,11 +699,16 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                   {/* If update log, highlight the logged activity */}
                   {isUpdateLog ? (
                     <div className="mb-3">
-                      <div className="text-sm font-extrabold text-slate-900 leading-snug mb-1">
-                        📌 {item.title}
+                      <div className="text-xs text-indigo-700 font-bold mb-1 flex items-center gap-1.5">
+                        <span className="font-black text-slate-800">
+                          📌 {task.title}
+                        </span>
+                        {task.subTopic && (
+                          <span className="text-indigo-600 font-semibold">• {task.subTopic}</span>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-600 font-medium">
-                        ชื่องานหลัก: <span className="font-bold text-slate-800">{task.title}</span>
+                      <div className="text-sm font-extrabold text-slate-900 leading-snug">
+                        {item.log?.content || item.title}
                       </div>
                       {item.timeStr && (
                         <div className="text-[11px] text-amber-800 font-semibold mt-1">
@@ -679,13 +718,20 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
                     </div>
                   ) : (
                     /* Main Task Title for deadline or start */
-                    <h4
-                      onClick={() => onOpenUpdate(task, 'edit')}
-                      className="text-sm font-bold text-slate-900 hover:text-[#0073ea] transition-colors line-clamp-2 mb-1.5 cursor-pointer"
-                      title="คลิกเพื่อแก้ไขข้อมูลงาน"
-                    >
-                      {task.title}
-                    </h4>
+                    <div className="mb-2">
+                      <h4
+                        onClick={() => onOpenUpdate(task, 'edit')}
+                        className="text-sm font-extrabold text-slate-900 hover:text-[#0073ea] transition-colors cursor-pointer flex items-center gap-1.5"
+                        title="คลิกเพื่อแก้ไขข้อมูลงาน"
+                      >
+                        <span>{task.title}</span>
+                        {task.subTopic && (
+                          <span className="text-xs font-semibold text-indigo-600">
+                            ({task.subTopic})
+                          </span>
+                        )}
+                      </h4>
+                    </div>
                   )}
 
                   {/* Task Detail Description (if any) */}
