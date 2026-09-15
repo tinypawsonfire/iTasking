@@ -423,17 +423,23 @@ export const MondayTableView: React.FC<MondayTableViewProps> = ({
 
                                   {/* SubTopic & Subtask indicators */}
                                   <div className="flex items-center gap-1.5 flex-wrap">
-                                    {task.subTopic && (
+                                    {Array.from(
+                                      new Set([
+                                        task.subTopic,
+                                        ...(task.subtasks?.map((s) => s.group) || []),
+                                      ].filter(Boolean) as string[])
+                                    ).map((stName) => (
                                       <button
+                                        key={stName}
                                         type="button"
                                         onClick={() => toggleSubtasks(task.id)}
                                         className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold border border-indigo-200/80 transition-colors shadow-2xs"
-                                        title="หัวข้อย่อย - คลิกเพื่อดูงานย่อย"
+                                        title={`หัวข้อย่อย: ${stName} - คลิกเพื่อดูงานย่อย`}
                                       >
                                         <ListTree className="w-3 h-3 text-indigo-600" />
-                                        <span>{task.subTopic}</span>
+                                        <span>{stName}</span>
                                       </button>
-                                    )}
+                                    ))}
 
                                     {totalSub > 0 && (
                                       <button
