@@ -30,7 +30,8 @@ export interface Subtask {
   completed: boolean;
   assignee?: string; // ผู้รับผิดชอบเฉพาะข้อ เช่น Thampapon, Muk
   group?: string; // หัวข้อย่อย เช่น ACS Product
-  dueDate?: string;
+  startDate?: string; // วันที่เริ่มงานย่อย (YYYY-MM-DD)
+  dueDate?: string; // วันสิ้นสุด / เดดไลน์ (YYYY-MM-DD)
 }
 
 export interface Task {

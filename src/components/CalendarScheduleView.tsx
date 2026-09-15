@@ -162,6 +162,42 @@ export const CalendarScheduleView: React.FC<CalendarScheduleViewProps> = ({
           }
         });
       }
+
+      // 4. Subtasks Start & Due Dates (กำหนดการงานย่อย)
+      if (task.subtasks && task.subtasks.length > 0) {
+        task.subtasks.forEach((st) => {
+          if (st.dueDate) {
+            const dueStr = toLocalDateString(st.dueDate);
+            if (dueStr) {
+              addItem(dueStr, {
+                id: `subtask-due-${st.id}`,
+                type: 'deadline',
+                task,
+                title: task.subTopic
+                  ? `[${task.title} - ${task.subTopic}] ${st.title} (${st.assignee})`
+                  : `[${task.title}] ${st.title} (${st.assignee})`,
+                badgeLabel: st.completed ? '✅ งานย่อยสำเร็จ' : '⚡ เดดไลน์งานย่อย',
+                dateStr: dueStr,
+              });
+            }
+          }
+          if (st.startDate && st.startDate !== st.dueDate) {
+            const stStartStr = toLocalDateString(st.startDate);
+            if (stStartStr) {
+              addItem(stStartStr, {
+                id: `subtask-start-${st.id}`,
+                type: 'start',
+                task,
+                title: task.subTopic
+                  ? `[${task.title} - ${task.subTopic}] เริ่ม: ${st.title} (${st.assignee})`
+                  : `[${task.title}] เริ่ม: ${st.title} (${st.assignee})`,
+                badgeLabel: '🚀 วันเริ่มงานย่อย',
+                dateStr: stStartStr,
+              });
+            }
+          }
+        });
+      }
     });
 
     return map;

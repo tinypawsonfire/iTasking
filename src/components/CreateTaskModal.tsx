@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import type { Task, TaskStatus, ModuleCategory } from '../types';
+import type { Task, TaskStatus, ModuleCategory, Subtask } from '../types';
 import { getTimestampFromDateString } from '../utils/dateUtils';
-import { X, Plus, Calendar, User, Layers, Sparkles, Clock, CheckCircle2, ListTree, Trash2 } from 'lucide-react';
+import { X, Plus, Calendar, User, Layers, Sparkles, Clock, CheckCircle2, ListTree, Trash2, Edit2, Check } from 'lucide-react';
 
 interface CreateTaskModalProps {
   isOpen: boolean;
@@ -22,13 +22,15 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
 
   const [title, setTitle] = useState('');
   const [subTopic, setSubTopic] = useState('');
-  const [subtasks, setSubtasks] = useState<
-    { id: string; title: string; assignee: string; completed: boolean }[]
-  >([]);
+  const [subtasks, setSubtasks] = useState<Subtask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
+  const [newSubtaskStartDate, setNewSubtaskStartDate] = useState('');
+  const [newSubtaskDueDate, setNewSubtaskDueDate] = useState('');
   const [newSubtaskAssignee, setNewSubtaskAssignee] = useState(
     availableUsers[0] || 'Thampapon'
   );
+  const [editingSubtaskId, setEditingSubtaskId] = useState<string | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
   const [assigneeInput, setAssigneeInput] = useState('');
   const [assigneesList, setAssigneesList] = useState<string[]>([]);
   const [module, setModule] = useState(modules[0]?.name || 'งานทั่วไป');
@@ -47,9 +49,23 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
         title: trimmed,
         assignee: newSubtaskAssignee || 'Thampapon',
         completed: false,
+        startDate: newSubtaskStartDate || undefined,
+        dueDate: newSubtaskDueDate || undefined,
       },
     ]);
     setNewSubtaskTitle('');
+    setNewSubtaskStartDate('');
+    setNewSubtaskDueDate('');
+  };
+
+  const handleUpdateSubtaskField = (
+    id: string,
+    field: 'title' | 'assignee' | 'startDate' | 'dueDate',
+    val: string
+  ) => {
+    setSubtasks((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: val || undefined } : s))
+    );
   };
 
   const handleRemoveSubtask = (id: string) => {
@@ -332,30 +348,108 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 {subtasks.map((st) => (
                   <div
                     key={st.id}
-                    className="flex items-center justify-between gap-2 p-2 px-2.5 bg-white rounded-lg border border-slate-200 text-xs"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2 px-2.5 bg-white rounded-xl border border-slate-200 text-xs shadow-2xs group"
                   >
-                    <span className="font-medium text-slate-800 truncate flex-1">
-                      • {st.title}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold border border-slate-200">
-                      <User className="w-2.5 h-2.5 text-slate-400" />
-                      {st.assignee}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSubtask(st.id)}
-                      className="text-slate-400 hover:text-rose-600 p-0.5 rounded"
-                      title="ลบงานย่อยนี้"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {editingSubtaskId === st.id ? (
+                        <div className="flex items-center gap-1.5 flex-1">
+                          <input
+                            type="text"
+                            value={editingSubtaskTitle}
+                            onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleUpdateSubtaskField(st.id, 'title', editingSubtaskTitle);
+                                setEditingSubtaskId(null);
+                              }
+                              if (e.key === 'Escape') setEditingSubtaskId(null);
+                            }}
+                            className="flex-1 px-2 py-0.5 text-xs bg-white border border-indigo-400 rounded-lg outline-none font-semibold text-slate-900"
+                            autoFocus
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleUpdateSubtaskField(st.id, 'title', editingSubtaskTitle);
+                              setEditingSubtaskId(null);
+                            }}
+                            className="p-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 cursor-pointer"
+                          >
+                            <Check className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <span className="font-medium text-slate-800 truncate">
+                            • {st.title}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSubtaskId(st.id);
+                              setEditingSubtaskTitle(st.title);
+                            }}
+                            className="p-1 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shrink-0"
+                            title="แก้ไขชื่อ"
+                          >
+                            <Edit2 className="w-2.5 h-2.5" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                      {/* Dates */}
+                      <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5 text-[11px]">
+                        <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="text-[10px] text-slate-400 font-bold">เริ่ม:</span>
+                        <input
+                          type="date"
+                          value={st.startDate || ''}
+                          onChange={(e) => handleUpdateSubtaskField(st.id, 'startDate', e.target.value)}
+                          className="bg-transparent border-0 text-[11px] font-medium text-slate-700 outline-none cursor-pointer p-0 w-24"
+                          title="วันเริ่มงาน"
+                        />
+                        <span className="text-[10px] text-slate-300">→</span>
+                        <span className="text-[10px] text-slate-400 font-bold">เสร็จ:</span>
+                        <input
+                          type="date"
+                          value={st.dueDate || ''}
+                          onChange={(e) => handleUpdateSubtaskField(st.id, 'dueDate', e.target.value)}
+                          className="bg-transparent border-0 text-[11px] font-medium text-slate-700 outline-none cursor-pointer p-0 w-24"
+                          title="วันสิ้นสุด / เดดไลน์"
+                        />
+                      </div>
+
+                      {/* Assignee select */}
+                      <select
+                        value={st.assignee}
+                        onChange={(e) => handleUpdateSubtaskField(st.id, 'assignee', e.target.value)}
+                        className="px-2 py-0.5 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 cursor-pointer outline-none"
+                      >
+                        {Array.from(new Set(['Thampapon', 'Arthit', 'Muk', ...availableUsers])).map((u) => (
+                          <option key={u} value={u}>
+                            {u}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubtask(st.id)}
+                        className="text-slate-300 hover:text-rose-600 p-1 rounded hover:bg-rose-50 cursor-pointer"
+                        title="ลบงานย่อยนี้"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
 
             {/* Input to add subtask */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1.5 bg-white/70 p-2 rounded-xl border border-indigo-100">
               <input
                 type="text"
                 value={newSubtaskTitle}
@@ -370,7 +464,28 @@ export const CreateTaskModal: React.FC<CreateTaskModalProps> = ({
                 className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
               />
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-1 bg-white border border-slate-200 px-2 py-1 rounded-lg text-xs">
+                  <Calendar className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="text-[10px] text-slate-400 font-bold">เริ่ม:</span>
+                  <input
+                    type="date"
+                    value={newSubtaskStartDate}
+                    onChange={(e) => setNewSubtaskStartDate(e.target.value)}
+                    className="bg-transparent border-0 text-xs font-medium text-slate-700 outline-none cursor-pointer p-0 w-24"
+                    title="วันเริ่มงาน"
+                  />
+                  <span className="text-[10px] text-slate-300">→</span>
+                  <span className="text-[10px] text-slate-400 font-bold">เสร็จ:</span>
+                  <input
+                    type="date"
+                    value={newSubtaskDueDate}
+                    onChange={(e) => setNewSubtaskDueDate(e.target.value)}
+                    className="bg-transparent border-0 text-xs font-medium text-slate-700 outline-none cursor-pointer p-0 w-24"
+                    title="วันสิ้นสุด / เดดไลน์"
+                  />
+                </div>
+
                 <select
                   value={newSubtaskAssignee}
                   onChange={(e) => setNewSubtaskAssignee(e.target.value)}
